@@ -16,7 +16,8 @@ internal static class UI
     public static Brush Brush(string color) => new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
     public static void Theme(Window window)
     {
-        window.FontFamily = new FontFamily("Malgun Gothic"); window.FontSize = 13;
+        window.FontFamily = new FontFamily("Noto Sans KR, Segoe UI, Malgun Gothic"); window.FontSize = 13;
+        TextOptions.SetTextFormattingMode(window, TextFormattingMode.Display);
         window.Foreground = Brushes.White; window.Background = Background;
         window.Resources = (ResourceDictionary)XamlReader.Parse(@"
 <ResourceDictionary xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'>
@@ -43,7 +44,7 @@ internal static class UI
     public static void Error(Exception ex) => MessageBox.Show(ex.Message, "작업을 완료하지 못했습니다", MessageBoxButton.OK, MessageBoxImage.Error);
 }
 
-public sealed class LauncherWindow : Window
+public sealed class LibraryWindow : Window
 {
     private readonly Store store;
     internal Library library;
@@ -61,10 +62,10 @@ public sealed class LauncherWindow : Window
     private readonly Dictionary<string, ImageSource?> iconCache = new();
     internal int RenderedCards => cards.Children.Count;
 
-    public LauncherWindow(Store store, Library library)
+    public LibraryWindow(Store store, Library library)
     {
         this.store = store; this.library = library;
-        UI.Theme(this); Title = "Deck Launcher · 작업표시줄 런처";
+        UI.Theme(this); Title = "런처 설정 · 파일과 폴더 관리"; ShowInTaskbar = false;
         Width = 1040; Height = 710; MinWidth = 780; MinHeight = 520;
         WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.CanResizeWithGrip;
         var area = SystemParameters.WorkArea;
@@ -78,11 +79,11 @@ public sealed class LauncherWindow : Window
         header.MouseLeftButtonDown += (_, e) => { if (e.OriginalSource is not Button && e.LeftButton == MouseButtonState.Pressed) { try { DragMove(); } catch { } } };
         var brand = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(22, 19, 12, 19) };
         brand.Children.Add(UI.Text("▦", 28, UI.Accent));
-        var brandText = new StackPanel { Margin = new Thickness(12, 0, 0, 0) }; brandText.Children.Add(UI.Text("DECK LAUNCHER", 17)); brandText.Children.Add(UI.Text("나만의 바로가기 라이브러리", 10, UI.Muted)); brand.Children.Add(brandText); header.Children.Add(brand);
+        var brandText = new StackPanel { Margin = new Thickness(12, 0, 0, 0) }; brandText.Children.Add(UI.Text("런처 설정", 19)); brandText.Children.Add(UI.Text("파일 · 폴더 · 이미지 · 메모", 11, UI.Muted)); brand.Children.Add(brandText); header.Children.Add(brand);
         var commands = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 15, 0) }; Grid.SetColumn(commands, 1);
         var add = UI.Button("＋ 파일 등록", AddFiles); add.Background = UI.Brush("#285D67"); commands.Children.Add(add);
         commands.Children.Add(UI.Button("＋ 폴더", AddFolder)); commands.Children.Add(UI.Button("···", ShowSettings));
-        commands.Children.Add(UI.Button("—", () => WindowState = WindowState.Minimized)); commands.Children.Add(UI.Button("×", () => Application.Current.Shutdown())); header.Children.Add(commands); outer.Children.Add(header);
+        commands.Children.Add(UI.Button("×", Close)); header.Children.Add(commands); outer.Children.Add(header);
 
         var body = new Grid(); Grid.SetRow(body, 1); body.ColumnDefinitions.Add(new() { Width = new GridLength(186) }); body.ColumnDefinitions.Add(new()); outer.Children.Add(body);
         var nav = new DockPanel { Background = UI.Brush("#131D2A") };
@@ -111,8 +112,6 @@ public sealed class LauncherWindow : Window
             if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.F) { search.Focus(); search.SelectAll(); e.Handled = true; }
             if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.N) { AddFiles(); e.Handled = true; }
         };
-        Closed += (_, _) => Application.Current.Shutdown();
-        SourceInitialized += (_, _) => Native.ConfigureTaskbar(this);
         Refresh();
     }
 
@@ -164,7 +163,7 @@ public sealed class LauncherWindow : Window
     internal void RenderCards()
     {
         cards.Children.Clear(); string query = search.Text.Trim();
-        var entries = query.Length == 0 ? library.Children(current) : library.Entries.Where(e => (e.Name + " " + e.Target + " " + library.Trail(e.ParentId)).Contains(query, StringComparison.OrdinalIgnoreCase));
+        var entries = query.Length == 0 ? library.Children(current) : library.Entries.Where(e => (e.Name + " " + e.Target + " " + e.Note + " " + library.Trail(e.ParentId)).Contains(query, StringComparison.OrdinalIgnoreCase));
         var list = entries.ToList(); heading.Text = query.Length > 0 ? "검색 결과" : library.Find(current)?.Name ?? "라이브러리";
         subtitle.Text = query.Length > 0 ? $"전체 라이브러리에서 {list.Count}개 항목" : $"{list.Count(x => x.IsFolder)}개 폴더 · {list.Count(x => !x.IsFolder)}개 바로가기";
         foreach (var e in list)
@@ -247,7 +246,6 @@ public sealed class LauncherWindow : Window
         try
         {
             using var process = Launch.Start(e);
-            if (library.HideAfterLaunch) Hide();
         }
         catch (Exception ex) { UI.Error(ex); }
     }
@@ -295,7 +293,7 @@ public sealed class EditorWindow : Window
 {
     private readonly Store store;
     private readonly Entry original;
-    private readonly TextBox name, target, arguments, working;
+    private readonly TextBox name, target, arguments, working, note;
     private readonly Image preview = new() { Width = 64, Height = 64, Margin = new Thickness(0, 0, 20, 0) };
     private string? pickedIcon;
     private string? existingIcon;
@@ -303,7 +301,7 @@ public sealed class EditorWindow : Window
     public EditorWindow(Store store, Entry original)
     {
         this.store = store; this.original = original; existingIcon = original.IconFile;
-        UI.Theme(this); Title = original.IsFolder ? "폴더 편집" : "바로가기 편집"; Width = 580; Height = original.IsFolder ? 390 : 670;
+        UI.Theme(this); Title = original.IsFolder ? "폴더 편집" : "바로가기 편집"; Width = 580; Height = original.IsFolder ? 510 : 790;
         ResizeMode = ResizeMode.NoResize; WindowStartupLocation = WindowStartupLocation.CenterOwner; ShowInTaskbar = false;
         var panel = new StackPanel { Margin = new Thickness(26) }; Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         panel.Children.Add(UI.Text(Title, 23));
@@ -316,6 +314,8 @@ public sealed class EditorWindow : Window
             target.TextChanged += (_, _) => UpdatePreview();
             var hint = UI.Text("실제 폴더 경로, https:// 주소, steam:// 링크도 등록할 수 있습니다.", 11, UI.Muted); hint.Margin = new Thickness(0, 9, 0, 0); panel.Children.Add(hint);
         }
+        note = Field(panel, "마우스를 올렸을 때 표시할 메모", original.Note);
+        note.Height = 78; note.AcceptsReturn = true; note.TextWrapping = TextWrapping.Wrap; note.VerticalScrollBarVisibility = ScrollBarVisibility.Auto; note.MaxLength = 300; note.ToolTip = "최대 300자. 실행 화면 가운데에 표시됩니다.";
         var iconRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 20, 0, 15) }; iconRow.Children.Add(preview);
         var iconActions = new StackPanel(); iconActions.Children.Add(UI.Button("이미지 선택…", PickIcon)); iconActions.Children.Add(UI.Button("기본 아이콘 사용", () => { pickedIcon = null; existingIcon = null; UpdatePreview(); })); iconRow.Children.Add(iconActions); panel.Children.Add(iconRow);
         var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
@@ -346,7 +346,7 @@ public sealed class EditorWindow : Window
         if (!original.IsFolder && path.Length == 0) { MessageBox.Show(this, "실행할 파일 경로나 링크를 입력해 주세요."); target.Focus(); return; }
         try
         {
-            Result = new Entry { Id = original.Id, ParentId = original.ParentId, IsFolder = original.IsFolder, Name = name.Text.Trim(), Target = path, Arguments = arguments.Text, WorkingDirectory = working.Text.Trim().Trim('"'), IconFile = pickedIcon != null ? store.CopyIcon(pickedIcon) : existingIcon };
+            Result = new Entry { Id = original.Id, ParentId = original.ParentId, IsFolder = original.IsFolder, Name = name.Text.Trim(), Target = path, Arguments = arguments.Text, WorkingDirectory = working.Text.Trim().Trim('"'), Note = note.Text.Trim(), IconFile = pickedIcon != null ? store.CopyIcon(pickedIcon) : existingIcon };
             DialogResult = true;
         }
         catch (Exception ex) { UI.Error(ex); }

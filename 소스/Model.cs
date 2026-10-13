@@ -13,6 +13,7 @@ public sealed class Entry
     public string Target { get; set; } = "";
     public string Arguments { get; set; } = "";
     public string WorkingDirectory { get; set; } = "";
+    public string Note { get; set; } = "";
     public string? IconFile { get; set; }
 }
 
