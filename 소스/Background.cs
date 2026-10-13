@@ -68,7 +68,7 @@ public sealed class BackgroundWindow : Window
 
     public BackgroundWindow(Store store, Library library, Entry? entry = null)
     {
-        this.store = store; entryId = entry?.Id; draft = (entry?.Background ?? library.Background).Copy(); UI.Theme(this);
+        this.store = store; entryId = entry?.Id; draft = (entry?.Background ?? library.Background).Copy(); UI.Theme(this,library.Theme);
         Title = entry == null ? "런처 배경 꾸미기" : entry.Name + " · 칸 배경 꾸미기"; Width = 1020; Height = 790; MinWidth = 740; MinHeight = 680; Topmost = false; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var area = SystemParameters.WorkArea; Width = Math.Min(Width, area.Width - 24); Height = Math.Min(Height, area.Height - 30);
         var main = new Grid { Margin = new Thickness(24) }; main.RowDefinitions.Add(new() { Height = GridLength.Auto }); main.RowDefinitions.Add(new()); main.RowDefinitions.Add(new() { Height = GridLength.Auto }); main.RowDefinitions.Add(new() { Height = GridLength.Auto }); Content = main;
@@ -80,7 +80,7 @@ public sealed class BackgroundWindow : Window
         if (entry == null) copy.Background = draft; else copy.Find(entry.Id)!.Background = draft;
         preview = new LauncherWindow(store, copy, true);
         if (entry != null) preview.PreviewEntry(entry);
-        cropBounds = entry != null ? preview.SlotGeometry(entry.Id)?.Bounds ?? BackgroundTools.Bounds : BackgroundTools.Bounds;
+        cropBounds = entry != null ? preview.SlotGeometry(entry.Id)?.Bounds ?? BackgroundTools.Bounds : preview.ShellGeometry().Bounds;
         previewArea = new Border { Background = UI.Brush("#233245"), BorderBrush = UI.Brush("#42546C"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18), Padding = new Thickness(12, 0, 12, 0), Child = preview.DetachPreview(), Cursor = Cursors.SizeAll };
         Grid.SetRow(previewArea, 1); main.Children.Add(previewArea);
         var controls = new Grid { Margin = new Thickness(0, 14, 0, 0) }; controls.ColumnDefinitions.Add(new()); controls.ColumnDefinitions.Add(new()); controls.RowDefinitions.Add(new()); controls.RowDefinitions.Add(new()); Grid.SetRow(controls, 2);
@@ -109,7 +109,7 @@ public sealed class BackgroundWindow : Window
         {
             try { SelectImage(store.IconPath(draft.ImageFile), false); } catch { status.Text = "저장된 이미지를 찾을 수 없어요. 다른 이미지를 선택해 주세요."; }
         }
-        Update();
+        Update(); Loaded+=(_,_)=>Skin.Connect(this);
     }
     private static void AddSlider(Grid grid, string label, Slider slider, int column, int row)
     {

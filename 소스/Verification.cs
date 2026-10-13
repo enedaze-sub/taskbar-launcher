@@ -60,7 +60,7 @@ internal static class SelfTests
             Check(restored.Theme.Accent=="#D7AFEF" && restored.Theme.Name=="테스트 테마","ZIP backup preserves custom theme settings");
             Check(restored.Find(item.Id)?.Note == item.Note, "ZIP backup preserves user notes");
             Check(restored.Background.ImageFile != lib.Background.ImageFile && File.Exists(store.IconPath(restored.Background.ImageFile!)) && restored.Background.Zoom == lib.Background.Zoom && restored.Background.OffsetY == lib.Background.OffsetY, "ZIP backup restores background image and crop settings");
-            Check(lib.ApplyUiUpdate() && !lib.HideAfterLaunch && !lib.ApplyUiUpdate() && lib.Entries.Count == 4, "UI migration changes preferences once while preserving registered entries");
+            Check(lib.ApplyUiUpdate() && lib.HideAfterLaunch && !lib.ApplyUiUpdate() && lib.Entries.Count == 4, "UI migration changes preferences once while preserving registered entries");
             var imageRect = BackgroundTools.ImageRect(800, 600, new BackgroundSettings { Zoom = 2, OffsetX = 1, OffsetY = -1 });
             Check(imageRect.Contains(BackgroundTools.Bounds), "Background stays covered at extreme crop positions");
             var centered = BackgroundTools.ImageRect(800, 600, new BackgroundSettings { Zoom = 2 });
@@ -85,6 +85,10 @@ internal static class SelfTests
             var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
             var win = new LibraryWindow(store, lib) { ShowActivated = false, Left = -20000, Top = -20000 };
             win.Show(); win.UpdateLayout();
+            void SetWheel(bool value)
+            {
+                var sheet=win.OptionsSheet();sheet.ShowActivated=false;sheet.WindowStartupLocation=WindowStartupLocation.Manual;sheet.Left=sheet.Top=-20000;sheet.Show();sheet.UpdateLayout();var choice=Find<CheckBox>(sheet).First(t=>t.Content as string=="휠로 다이얼 돌리기");choice.IsChecked=value;choice.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));sheet.Close();
+            }
             Check(!win.Topmost, "Management window uses normal stacking order");
             Check(win.RenderedCards == 1, "Root renders only immediate children");
             var folderDrop = Find<Button>(win).First(x => x.Tag as string == a.Id);
@@ -154,7 +158,7 @@ internal static class SelfTests
             radial.ChangePage(-99);var defaultIds=radial.DisplayedIds.ToArray();
             radial.RaiseEvent(new System.Windows.Input.MouseWheelEventArgs(System.Windows.Input.Mouse.PrimaryDevice,0,-120){RoutedEvent=UIElement.MouseWheelEvent});
             Check(defaultIds.SequenceEqual(radial.DisplayedIds) && radial.DialStart==0,"Actual mouse wheel has no navigation effect with the default disabled preference");
-            var wheelSetting=win.SettingsMenu().Items.OfType<MenuItem>().First(m=>m.Header as string=="휠로 다이얼 돌리기");wheelSetting.IsChecked=true;wheelSetting.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            SetWheel(true);
             Check(lib.WheelDialEnabled && store.Load().WheelDialEnabled,"Settings menu explicitly enables wheel scrolling and persists it");
             // Wheel shifts one item at a time, including reverse wrapping and folder state.
             radial.ChangePage(-99);var ordered=lib.Children(c.Id).Select(e=>e.Id).ToList();
@@ -188,7 +192,7 @@ internal static class SelfTests
             var slotRect=BackgroundTools.ImageRect(900,600,new BackgroundSettings {Zoom=2.8,OffsetX=1,OffsetY=-1},sector.Bounds);
             Check(slotRect.Contains(sector.Bounds),"Per-slot images cover their curved slot at extreme crop offsets");
             var themeEditor=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};themeEditor.Show();themeEditor.UsePreset(ThemeSettings.Presets[2]);
-            Check(lib.Theme.Name=="네온 오빗" && themeEditor.Draft.Name=="딸기 밀크","Theme preview edits are isolated until applying");
+            Check(lib.Theme.Name=="크림 페이퍼" && themeEditor.Draft.Name=="딸기 밀크","Theme preview edits are isolated until applying");
             var colorBox=Find<TextBox>(themeEditor).First();colorBox.Text="#234567";Check(themeEditor.Draft.Background=="#234567" && themeEditor.Draft.Name.StartsWith("나의 테마"),"Custom hex colors update the actual theme draft");
             Find<Slider>(themeEditor).First(x=>x.Minimum==5).Value=9;Check(themeEditor.Draft.Slots==9,"Custom display layout supports nine slots");themeEditor.Close();
             var invalidEditor=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};
@@ -197,7 +201,7 @@ internal static class SelfTests
             invalidEditor.ShowDialog();Check(invalidStayedOpen,"Invalid custom color input keeps the dialog open and does not apply a theme");
             var applyTheme=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};
             app.Dispatcher.BeginInvoke(new Action(()=>{applyTheme.UsePreset(ThemeSettings.Presets[4]);Find<Button>(applyTheme).First(x=>x.Content as string=="적용").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));}));
-            Check(applyTheme.ShowDialog()==true && applyTheme.Result!.Name=="오션 블루","Theme Apply button commits a selected preset");
+            Check(applyTheme.ShowDialog()==true && applyTheme.Result!.Name==ThemeSettings.Presets[4].Name,"Theme Apply button commits a selected preset");
             var slotEditor=new BackgroundWindow(store,lib,item){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};slotEditor.SelectImage(backgroundSource);var slotOldZoom=item.Background.Zoom;slotEditor.Draft.Zoom=2.4;Check(item.Background.Zoom==slotOldZoom,"Per-slot background preview leaves the entry unchanged until applying");
             app.Dispatcher.BeginInvoke(new Action(()=>{Find<Slider>(slotEditor).First(x=>x.Minimum==1).Value=2.6;Find<Button>(slotEditor).First(x=>x.Content as string=="적용").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));}));
             Check(slotEditor.ShowDialog()==true && slotEditor.Result!.Zoom==2.6 && slotEditor.Result.ImageFile!=item.Background.ImageFile && lib.Background.Zoom==oldZoom,"Per-slot Apply saves an independent image and crop without changing the overall background");
@@ -206,19 +210,22 @@ internal static class SelfTests
             Check(entryEditor.ShowDialog()==true && entryEditor.Result!.Background.ImageFile==item.Background.ImageFile && entryEditor.Result.Background.Zoom==item.Background.Zoom,"Editing an entry retains its per-slot background");
             var migratedCustom=new Library {UiRevision=4,Theme=new ThemeSettings {Name="내 커스텀 테마",Accent="#AABBCC"}};
             Check(migratedCustom.ApplyUiUpdate() && migratedCustom.CustomThemes.Count==1 && migratedCustom.CustomThemes[0].Settings.Accent=="#AABBCC" && !migratedCustom.ApplyUiUpdate(),"Migration preserves the previous custom appearance in a separate saved theme exactly once");
-            var stable=new Library{UiRevision=3,HideAfterLaunch=true};Check(stable.ApplyUiUpdate() && stable.HideAfterLaunch && stable.UiRevision==5 && !stable.WheelDialEnabled,"Revision five preserves the launch preference and defaults wheel scrolling to disabled");
+            var stable=new Library{UiRevision=3,HideAfterLaunch=true};Check(stable.ApplyUiUpdate() && stable.HideAfterLaunch && stable.UiRevision==6 && !stable.WheelDialEnabled,"Revision five preserves the launch preference and defaults wheel scrolling to disabled");
             foreach(var design in ThemeSettings.DesignPresets){design.Validate();radial.UpdateTheme(design.Copy());Check(radial.library.Theme.Design==design.Design && radial.RenderedSlots>0,"New design renders with its dedicated style: "+design.Name);}
-            Check(ThemeSettings.Presets.Count==6 && ThemeSettings.DesignPresets.Count==4,"Six original color themes and four new designs remain separate collections");
+            Check(ThemeSettings.Presets.Count==9 && ThemeSettings.DesignPresets.Count==4,"Nine color palettes and four distinct launcher layouts remain separate collections");
             var customEditor=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};customEditor.Show();
             int oldCustomCount=lib.CustomThemes.Count;customEditor.UsePreset(ThemeSettings.DesignPresets[1]);customEditor.NewCustom();
             Check(customEditor.SaveCustomNamed("냥냥 커스텀") && customEditor.CustomCount==oldCustomCount+1 && lib.CustomThemes.Count==oldCustomCount,"Creating a named custom theme uses a separate isolated collection");
+            customEditor.UsePreset(ThemeSettings.Presets.First(t=>t.Name=="딸기 밀크"));Check(customEditor.Draft.Design=="cat" && customEditor.Draft.Accent=="#AC3C6C","Changing color palette preserves the selected launcher layout");
+            customEditor.UsePreset(ThemeSettings.DesignPresets[2]);Check(customEditor.Draft.Design=="neon" && customEditor.Draft.Accent=="#AC3C6C","Changing UI layout preserves the selected colors");
+            customEditor.UseSaved(customEditor.SavedDraft.Last().Id);
             var firstCustom=customEditor.SavedDraft.Last().Id;customEditor.UseSaved(firstCustom);customEditor.Draft.Accent="#AA6688";
             Check(customEditor.SaveCustomNamed("냥냥 리본") && customEditor.CustomCount==oldCustomCount+1 && customEditor.SavedDraft.Last().Id==firstCustom,"Editing a saved custom theme retains its identity without duplicating it");
             customEditor.NewCustom();customEditor.Draft.Design="neon";Check(customEditor.SaveCustomNamed("밤의 네온") && customEditor.CustomCount==oldCustomCount+2,"Multiple custom themes can be saved independently");
             customEditor.UseSaved(firstCustom);Check(customEditor.Draft.Design=="cat" && customEditor.Draft.Accent=="#AA6688","Selecting a saved custom theme restores its individual colors and design");
             var savedToDelete=customEditor.SavedDraft.Last().Id;customEditor.UseSaved(savedToDelete);Find<Button>(customEditor).First(b=>b.Content as string=="선택 테마 삭제").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Check(customEditor.CustomCount==oldCustomCount+1 && customEditor.SavedDraft.Any(t=>t.Id==firstCustom),"Deleting one saved custom theme preserves the others");
-            Check(ThemeSettings.Presets.Select(t=>t.Name).SequenceEqual(new[]{"민트 나이트","라벤더 문","딸기 밀크","바닐라 라테","오션 블루","네온 오빗"}),"Saving and deleting custom themes never changes the six built-in choices");
+            Check(ThemeSettings.Presets.Count==9 && !ThemeSettings.Presets.Any(t=>t.Name=="오션 블루" || t.Name=="글래스 스카이"),"Custom themes never reintroduce removed color choices");
             customEditor.Close();Check(lib.CustomThemes.Count==oldCustomCount,"Cancelling the custom editor leaves saved themes unchanged");
             var customApply=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};
             app.Dispatcher.BeginInvoke(new Action(()=>{customApply.UsePreset(ThemeSettings.DesignPresets[2]);customApply.NewCustom();customApply.SaveCustomNamed("저장할 네온");Find<Button>(customApply).First(b=>b.Content as string=="적용").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));}));
@@ -227,13 +234,43 @@ internal static class SelfTests
             Check(store.Load().CustomThemes.Any(t=>t.Name=="저장할 네온" && t.Settings.Design=="neon"),"Named custom themes persist across reloads");
             var customBackup=Path.Combine(store.DirectoryPath,"custom-backup.zip");store.Backup(customBackup,lib);Check(Store.ReadBackup(customBackup).Library.CustomThemes.Any(t=>t.Name=="저장할 네온"),"New custom themes are included in future library backups");
             Check(Store.ReadBackup(customBackup).Library.WheelDialEnabled,"Library backups retain the opt-in wheel preference");
-            wheelSetting=win.SettingsMenu().Items.OfType<MenuItem>().First(m=>m.Header as string=="휠로 다이얼 돌리기");wheelSetting.IsChecked=false;wheelSetting.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));radial.Navigate(c.Id);radial.ChangePage(1);var noWheelIds=radial.DisplayedIds.ToArray();
+            SetWheel(false);radial.Navigate(c.Id);radial.ChangePage(1);var noWheelIds=radial.DisplayedIds.ToArray();
             radial.RaiseEvent(new System.Windows.Input.MouseWheelEventArgs(System.Windows.Input.Mouse.PrimaryDevice,0,-120){RoutedEvent=UIElement.MouseWheelEvent});
             Check(!store.Load().WheelDialEnabled && noWheelIds.SequenceEqual(radial.DisplayedIds),"Disabling the settings toggle stops wheel navigation and keeps page buttons active");
             bool invalidTheme=false;try{new ThemeSettings{Accent="not-a-color"}.Validate();}catch(InvalidDataException){invalidTheme=true;}Check(invalidTheme,"Imported theme values are validated");
-            bool displayFont = UI.DisplayFont.GetTypefaces().Any(x => x.TryGetGlyphTypeface(out var g) && g.FamilyNames.Values.Any(n => n == "Jua"));
-            bool bodyFont = UI.RoundedFont.GetTypefaces().Any(x => x.TryGetGlyphTypeface(out var g) && g.FamilyNames.Values.Any(n => n == "Gowun Dodum"));
-            Check(displayFont && bodyFont, "Bundled rounded Jua and Gowun Dodum fonts resolve to actual typefaces");
+            var defaultPalette=ThemeSettings.Presets;
+            Check(!defaultPalette.Any(t=>t.Name=="오션 블루" || t.Name=="글래스 스카이") && defaultPalette.Any(t=>t.Name=="클라우드 화이트") && defaultPalette.Any(t=>t.Name=="피치 크림") && defaultPalette.Any(t=>t.Name=="네온 민트"),"Removed colors are absent and design-derived colors are in the palette collection");
+            var parsedCommand=TargetCommand.Parse("\"C:\\Program Files\\Discord\\Update.exe\" --processStart Discord.exe");
+            Check(parsedCommand.Target=="C:\\Program Files\\Discord\\Update.exe" && parsedCommand.Arguments=="--processStart Discord.exe","Pasted shortcut targets split executable paths from launch arguments");
+            var pasteEditor=new EditorWindow(store,new Entry {Name="복사 등록 테스트"},lib.Theme){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};pasteEditor.Show();
+            var targetBox=Find<TextBox>(pasteEditor).First(t=>t.Tag as string=="Target");string cmdPath=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","cmd.exe");
+            var pasteData=new DataObject(DataFormats.UnicodeText,"\""+cmdPath+"\" /d /c exit 0");var pasteArgs=new DataObjectPastingEventArgs(pasteData,false,DataFormats.UnicodeText){RoutedEvent=DataObject.PastingEvent};targetBox.RaiseEvent(pasteArgs);
+            Check(pasteArgs.CommandCancelled && targetBox.Text==cmdPath && Find<TextBox>(pasteEditor).First(t=>t.Tag as string=="Arguments").Text=="/d /c exit 0","Actual paste handler fills executable and arguments fields separately");pasteEditor.Close();
+            var unquoted=TargetCommand.Parse("C:\\Program Files\\Some App\\App.exe --profile \"My Profile\"");
+            Check(unquoted.Target=="C:\\Program Files\\Some App\\App.exe" && unquoted.Arguments=="--profile \"My Profile\"","Unquoted executable paths with spaces retain quoted argument values");
+            Check(TargetCommand.Parse("steam://rungameid/1").Target=="steam://rungameid/1","URI registration remains intact");
+            win.Show();lib.Theme=ThemeSettings.Presets.First(t=>t.Name=="피치 크림").Copy();win.Navigate(null);win.UpdateLayout();
+            Check(((SolidColorBrush)win.Background).Color==(Color)ColorConverter.ConvertFromString(lib.Theme.Background) && ((SolidColorBrush)win.Foreground).Color==(Color)ColorConverter.ConvertFromString(lib.Theme.Text),"Selected palette applies to management background and text");
+            var textColor=Find<TextBlock>(win).First(t=>t.Text=="라이브러리").Foreground;
+            Check(((SolidColorBrush)textColor).Color==(Color)ColorConverter.ConvertFromString(lib.Theme.Text),"Management headings inherit palette text colors");win.Hide();
+            foreach(var layout in ThemeSettings.DesignPresets)
+            {
+                radial.UpdateTheme(layout.Copy());radial.Navigate(c.Id);radial.ChangePage(-99);radial.UpdateLayout();var firstId=radial.DisplayedIds[0];var rect=radial.SlotGeometry(firstId)!.Bounds;
+                Point testPoint=layout.Design=="neon"?new Point(rect.X+rect.Width/2,rect.Y+41):new Point(rect.X+rect.Width/2,rect.Y+rect.Height/2);
+                var actualHit=radial.InputHitTest(testPoint) as DependencyObject;while(actualHit!=null && actualHit is not Button)actualHit=VisualTreeHelper.GetParent(actualHit);
+                Check(actualHit==radial.Slot(firstId) && Math.Abs(radial.ShellGeometry().Bounds.Height-390)>.1,"Alternate layout has its own shell and correct icon hit testing: "+layout.Name);
+                var last=lib.Children(c.Id).Last();RaiseDrop(radial.Slot(firstId)!,last.Id,new Point(rect.Right-4,rect.Y+rect.Height/2));Check(lib.Children(c.Id).ToList().IndexOf(last)==1,"Reordering works in alternate layout: "+layout.Name);
+            }
+            var helpWindow=new RegistrationHelpWindow(lib.Theme,null){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};helpWindow.Show();helpWindow.UpdateLayout();
+            Check(Find<Image>(helpWindow).Count(i=>i.Source!=null)>=2 && Find<TextBlock>(helpWindow).Any(t=>t.Text.Contains("한 번 더 우클릭")) && Find<TextBlock>(helpWindow).Any(t=>t.Text.Contains("자동 분리")),"Registration help shows both reference images and the extra right-click and argument steps");helpWindow.Close();
+            var actionSheet=new ActionSheet("꾸미기","미리보기",lib.Theme){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};actionSheet.Add("◈","색상과 디자인","직접 골라 꾸미기",()=>{});actionSheet.Show();actionSheet.UpdateLayout();
+            Check(actionSheet.WindowStyle==WindowStyle.None && actionSheet.AllowsTransparency && Find<Button>(actionSheet).Any(b=>b.Content is Grid),"Choice sheets use rounded themed action cards instead of basic context lists");actionSheet.Close();
+            radial.Show();radial.HandleScreenClick(radial.PointToScreen(new Point(1200,700)));Check(!radial.IsVisible,"A screen click outside the launcher dismisses it even when initially inactive");radial.Show();
+            var owned=new Window {Owner=radial,Title="설정 예외",Width=100,Height=100,Left=-20000,Top=-20000};owned.Show();radial.HandleScreenClick(owned.PointToScreen(new Point(20,20)));Check(radial.IsVisible,"Clicks inside an owned settings window do not dismiss the launcher");owned.Close();
+            radial.Show();radial.library.HideAfterLaunch=false;radial.Open(new Entry {Target=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","cmd.exe"),Arguments="/d /c exit 0"});Check(!radial.IsVisible,"Successful launch always dismisses the launcher even with an old disabled preference");
+            bool displayFont = UI.DisplayFont.GetTypefaces().Any(x => x.TryGetGlyphTypeface(out var g) && g.FamilyNames.Values.Any(n => n == "Cafe24 Ssurround" || n == "Jua"));
+            bool bodyFont = UI.RoundedFont.GetTypefaces().Any(x => x.TryGetGlyphTypeface(out var g) && g.FamilyNames.Values.Any(n => n == "Cafe24 Ssurround air" || n == "Gowun Dodum"));
+            Check(displayFont && bodyFont, "Rounded Cafe24 fonts or bundled fallback fonts resolve to real typefaces");
             radial.Hide(); app.Shutdown();
             log.Add("ALL CHECKS PASSED"); File.WriteAllLines(Path.Combine(output, "검증결과.txt"), log); return 0;
         }
@@ -329,6 +366,10 @@ internal static class Preview
         win.UpdateTheme(lib.Theme);Snapshot(win,Path.Combine(output,"미리보기-칸배경.png"));
         var slotEditor=new BackgroundWindow(store,lib,hoverEntry){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};slotEditor.Show();Snapshot(slotEditor,Path.Combine(output,"미리보기-칸배경설정.png"));slotEditor.Close();
         lib.WheelDialEnabled=true;win.RotateDial(1);Snapshot(win,Path.Combine(output,"미리보기-휠순환.png"));
+        var paletteManager=new LibraryWindow(store,new Library {Entries=lib.Entries,Theme=ThemeSettings.Presets.First(t=>t.Name=="피치 크림").Copy()}){ShowActivated=false,Left=-20000,Top=-20000};paletteManager.Show();Snapshot(paletteManager,Path.Combine(output,"미리보기-설정색상.png"));paletteManager.Close();
+        var help=new RegistrationHelpWindow(lib.Theme,null){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};help.Show();Snapshot(help,Path.Combine(output,"미리보기-등록도움말.png"));help.Close();
+        var appearance=new ActionSheet("화면 꾸미기","색상과 모양을 내 취향으로",lib.Theme){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};appearance.Add("◈","색상 · UI 디자인","새 레이아웃과 내 커스텀 테마",()=>{});appearance.Add("▧","전체 배경 이미지","미리보기에서 위치와 확대를 맞추세요",()=>{});appearance.Note("칸별 배경은 카드 우클릭으로 바꿀 수 있어요.");appearance.Show();Snapshot(appearance,Path.Combine(output,"미리보기-꾸미기메뉴.png"));appearance.Close();
+        var optionSource=new LibraryWindow(store,lib);var options=optionSource.OptionsSheet();options.ShowActivated=false;options.WindowStartupLocation=WindowStartupLocation.Manual;options.Left=options.Top=-20000;options.Show();Snapshot(options,Path.Combine(output,"미리보기-옵션메뉴.png"));options.Close();
         win.Hide(); app.Shutdown(); return 0;
     }
 }

@@ -36,7 +36,7 @@ public sealed partial class LauncherWindow
         CloseFolderPreview(depth);
         var entries=library.Children(folder.Id).ToList();
         var popup=new Window { Title=folder.Name+" · 빠른 펼치기",Tag=folder.Id,Owner=this,ShowInTaskbar=false,ShowActivated=false,Topmost=false,WindowStyle=WindowStyle.None,ResizeMode=ResizeMode.NoResize,AllowsTransparency=true,Background=Brushes.Transparent,Width=284,Height=Math.Min(390,100+Math.Max(1,entries.Count)*59),FontFamily=UI.RoundedFont,FontSize=13 };
-        UI.Theme(popup);popup.Background=Brushes.Transparent;
+        UI.Theme(popup,Theme);popup.Background=Brushes.Transparent;
         var panel=new Grid {Margin=new Thickness(5)};panel.RowDefinitions.Add(new(){Height=GridLength.Auto});panel.RowDefinitions.Add(new());
         popup.Content=new Border {Background=T(Theme.Background),BorderBrush=AccentTone(.6),BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(18),Padding=new Thickness(14),Child=panel};
         var header=new StackPanel {Margin=new Thickness(3,1,3,12)};var name=UI.Text(folder.Name,19,T(Theme.Text));name.FontFamily=UI.DisplayFont;header.Children.Add(name);header.Children.Add(UI.Text(entries.Count+"개 항목 · 바로 선택하세요",11,MutedTone));panel.Children.Add(header);
@@ -53,7 +53,7 @@ public sealed partial class LauncherWindow
             row.MouseLeave+=(_,_)=>SchedulePreviewClose(); rows.Children.Add(row);
         }
         popup.MouseEnter+=(_,_)=>{hoverClose?.Stop();};popup.MouseLeave+=(_,_)=>SchedulePreviewClose();
-        popup.Deactivated+=(_,_)=>Dispatcher.BeginInvoke(new Action(()=>{if(!IsActive && !folderPreviews.Any(w=>w.IsActive))CloseFolderPreview();}),DispatcherPriority.Background);
+        popup.Deactivated+=(_,_)=>Dispatcher.BeginInvoke(new Action(()=>{if(!IsActive && !folderPreviews.Any(w=>w.IsActive))HandleFocusLoss();}),DispatcherPriority.Background);
         popup.PreviewKeyDown+=(_,e)=>{if(e.Key==Key.Escape){CloseFolderPreview();e.Handled=true;}};
         Point at;
         if(depth==0 && slotShapes.TryGetValue(folder.Id,out var shape)) {var rect=shape.Bounds;at=anchor.PointToScreen(new Point(rect.X+rect.Width/2,rect.Y+rect.Height/2));}
@@ -69,7 +69,9 @@ public sealed partial class LauncherWindow
         if(previewMode)return;target.AllowDrop=true;
         (bool Into,bool After) Location(DragEventArgs e)
         {
-            var point=e.GetPosition(target);double angle=Math.Atan2(point.Y-453,point.X-460)*180/Math.PI;
+            var point=e.GetPosition(target);
+            if(AlternateLayout && slotShapes.TryGetValue(anchor.Id,out var geometry)) {var rect=geometry.Bounds;return(anchor.IsFolder && Math.Abs(point.X-(rect.X+rect.Width/2))<rect.Width*.26,point.X>rect.X+rect.Width/2);}
+            double angle=Math.Atan2(point.Y-453,point.X-460)*180/Math.PI;
             double span=178.0/Math.Max(5,RenderedSlots);
             return(anchor.IsFolder && Math.Abs(angle-centerAngle)<span*.28,angle>centerAngle);
         }

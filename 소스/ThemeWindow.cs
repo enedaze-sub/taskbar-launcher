@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
@@ -28,7 +28,7 @@ public sealed class ThemeWindow : Window
     {
         Draft = library.Theme.Copy(); saved = library.CustomThemes.Select(t => t.Copy()).ToList();
         savedId = saved.FirstOrDefault(t => t.Settings.Name == Draft.Name)?.Id;
-        UI.Theme(this); Title = "테마와 디자인 꾸미기"; Width = 1140; Height = 840;
+        UI.Theme(this, library.Theme); Title = "테마와 디자인 꾸미기"; Width = 1140; Height = 840;
         MinWidth = 930; MinHeight = 660; ShowInTaskbar = false; Topmost = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Width = Math.Min(Width, SystemParameters.WorkArea.Width - 24); Height = Math.Min(Height, SystemParameters.WorkArea.Height - 30);
         var main = new Grid { Margin = new Thickness(24) };
@@ -38,12 +38,12 @@ public sealed class ThemeWindow : Window
 
         var selectorArea = new StackPanel { Margin = new Thickness(0, 13, 0, 18) }; Grid.SetRow(selectorArea, 1); main.Children.Add(selectorArea);
         var categories = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 7) }; selectorArea.Children.Add(categories);
-        foreach (var item in new[] { ("기본 색상 · 6", 0), ("새 디자인 · 4", 1), ("내 커스텀 테마", 2) })
+        foreach (var item in new[] { ("기본 색상 · 9", 0), ("새 디자인 · 4", 1), ("내 커스텀 테마", 2) })
         {
             int category = item.Item2; var tab = UI.Button(item.Item1, () => SelectCategory(category)); tabs.Add(tab); categories.Children.Add(tab);
         }
         selectors.Height = 104; selectorArea.Children.Add(selectors);
-        AddPresetTiles(ThemeSettings.Presets, 6, 0); AddPresetTiles(ThemeSettings.DesignPresets, 4, 1);
+        AddPresetTiles(ThemeSettings.Presets, 9, 0); AddPresetTiles(ThemeSettings.DesignPresets, 4, 1);
         selectors.Children.Add(new Grid()); BuildSavedSelector();
 
         var body = new Grid(); body.ColumnDefinitions.Add(new()); body.ColumnDefinitions.Add(new() { Width = new GridLength(300) }); Grid.SetRow(body, 2); main.Children.Add(body);
@@ -74,10 +74,10 @@ public sealed class ThemeWindow : Window
             }
             else
             {
-                var mark = UI.Text(preset.Design switch { "cat" => "=^·^=", "neon" => "✦", "glass" => "◌", _ => "▦" }, 24, UI.Brush(preset.Accent)); mark.TextAlignment = TextAlignment.Center; content.Children.Add(mark);
+                var mark = UI.Text(preset.Design switch { "cat" => "=^·^=", "neon" => "✦", "paper" => "▤", _ => "▦" }, 24, UI.Brush(preset.Accent)); mark.TextAlignment = TextAlignment.Center; content.Children.Add(mark);
             }
             var name = UI.Text(preset.Name, 14, UI.Brush(preset.Text)); name.TextAlignment = TextAlignment.Center; name.Margin = new Thickness(0, 7, 0, 0); content.Children.Add(name);
-            var tile = UI.Button("", () => UsePreset(preset)); tile.Background = UI.Brush(preset.Background); tile.Content = content; tile.ToolTip = preset.Name; grid.Children.Add(tile);
+            var tile = UI.Button("", () => UsePreset(preset)); tile.Tag="keep-colors"; tile.Background = UI.Brush(preset.Background); tile.Content = content; tile.ToolTip = preset.Name; grid.Children.Add(tile);
         }
         selectors.Children.Add(grid);
     }
@@ -101,7 +101,16 @@ public sealed class ThemeWindow : Window
     }
     internal void UsePreset(ThemeSettings settings)
     {
-        Draft = settings.Copy(); savedId = null; modified = false; BuildSavedSelector(); BuildControls(); SelectCategory(settings.Design == "classic" ? 0 : 1); Update();
+        var previous=Draft.Copy();
+        if(settings.Design=="classic")
+        {
+            Draft=previous;Draft.Name=settings.Name;Draft.Background=settings.Background;Draft.Surface=settings.Surface;Draft.Accent=settings.Accent;Draft.Text=settings.Text;
+        }
+        else
+        {
+            Draft=settings.Copy();Draft.Background=previous.Background;Draft.Surface=previous.Surface;Draft.Accent=previous.Accent;Draft.Text=previous.Text;
+        }
+        savedId = null; modified = false; BuildSavedSelector(); BuildControls(); SelectCategory(settings.Design == "classic" ? 0 : 1); Update();
     }
     internal void UseSaved(string id)
     {
@@ -159,19 +168,19 @@ public sealed class ThemeWindow : Window
     {
         modified = true; Draft.Name = customName?.Text.Trim() ?? "나의 테마"; Update();
     }
-    private void Update() { preview.UpdateTheme(Draft); status.Text = Draft.Name + " · " + Draft.Slots + "칸"; }
+    private void Update() { Skin.Palette(this,Draft); Skin.Connect(this); preview.UpdateTheme(Draft); status.Text = Draft.Name + " · " + Draft.Slots + "칸"; }
     private void BuildControls()
     {
         controls.Children.Clear(); colorBoxes.Clear(); var label = UI.Text("나만의 색상과 디스플레이", 18); label.FontFamily = UI.DisplayFont; controls.Children.Add(label);
         var designLabel = UI.Text("디자인 스타일", 12, UI.Muted); designLabel.Margin = new Thickness(0, 13, 0, 5); controls.Children.Add(designLabel);
-        var styles = new[] { "classic", "modern", "cat", "neon", "glass" };
-        var design = new ComboBox { ItemsSource = new[] { "기본 부채꼴", "모던", "고양이", "네온", "글래스" }, SelectedIndex = Array.IndexOf(styles, Draft.Design) }; controls.Children.Add(design);
+        var styles = new[] { "classic", "modern", "cat", "neon", "paper" };
+        var design = new ComboBox { ItemsSource = new[] { "기본 부채꼴", "모던", "고양이", "네온", "카드 보드" }, SelectedIndex = Array.IndexOf(styles, Draft.Design) }; controls.Children.Add(design);
         design.SelectionChanged += (_, _) => { if (design.SelectedIndex >= 0) { Draft.Design = styles[design.SelectedIndex]; Changed(); } };
         void ColorRow(string name, string value, Action<string> assign)
         {
             controls.Children.Add(new TextBlock { Text = name, Foreground = UI.Muted, FontSize = 12, Margin = new Thickness(0, 14, 0, 5) });
             var row = new DockPanel(); var box = new TextBox { Text = value, MaxLength = 7, ToolTip = "#RRGGBB 형식의 색상" };
-            var pick = UI.Button("●", () => { var dialog = new ColorWindow(ThemeSettings.ValidColor(box.Text) ? box.Text : value) { Owner = this }; if (dialog.ShowDialog() == true) box.Text = dialog.Result; });
+            var pick = UI.Button("●", () => { var dialog = new ColorWindow(ThemeSettings.ValidColor(box.Text) ? box.Text : value,Draft) { Owner = this }; if (dialog.ShowDialog() == true) box.Text = dialog.Result; });
             pick.Foreground = UI.Brush(value); pick.Padding = new Thickness(13, 7, 13, 7); DockPanel.SetDock(pick, Dock.Right); row.Children.Add(pick); row.Children.Add(box); controls.Children.Add(row); colorBoxes.Add(box);
             box.TextChanged += (_, _) => { if (!ThemeSettings.ValidColor(box.Text)) { box.BorderBrush = UI.Brush("#EF8EAB"); return; } box.BorderBrush = UI.Brush("#3B526D"); pick.Foreground = UI.Brush(box.Text); assign(box.Text); Changed(); };
         }

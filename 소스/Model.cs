@@ -33,12 +33,15 @@ public sealed class Library
     public Entry? Find(string? id) => Entries.FirstOrDefault(e => e.Id == id);
     public bool ApplyUiUpdate()
     {
-        if (UiRevision >= 5) return false;
+        if (UiRevision >= 6) return false;
         if (UiRevision < 3) HideAfterLaunch = false;
-        WheelDialEnabled = false;
+        if (UiRevision < 5) WheelDialEnabled = false;
+        HideAfterLaunch = true;
+        if (Theme.Design == "glass") Theme.Design = "classic";
+        foreach(var theme in CustomThemes) if(theme.Settings.Design == "glass") theme.Settings.Design="classic";
         if (!ThemeSettings.Presets.Concat(ThemeSettings.DesignPresets).Any(t => t.Name == Theme.Name) && !CustomThemes.Any(t => t.Settings.Name == Theme.Name))
             CustomThemes.Add(new SavedTheme { Name = Theme.Name, Settings = Theme.Copy() });
-        UiRevision = 5; return true;
+        UiRevision = 6; return true;
     }
     public bool MoveEntries(IEnumerable<string> ids, string? parent)
     {

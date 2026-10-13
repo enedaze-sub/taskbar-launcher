@@ -25,7 +25,7 @@ public sealed class ThemeSettings
     public static bool ValidColor(string value) => value != null && System.Text.RegularExpressions.Regex.IsMatch(value, "^#[0-9a-fA-F]{6}$");
     public void Validate()
     {
-        if (new[] { Background, Surface, Accent, Text }.Any(x => !ValidColor(x)) || Slots < 5 || Slots > 9 || !double.IsFinite(IconSize) || IconSize < 28 || IconSize > 48 || !double.IsFinite(Radius) || Radius < 280 || Radius > 315 || !double.IsFinite(Gap) || Gap < .3 || Gap > 2.5 || Frame is not ("rounded" or "circle" or "minimal") || Design is not ("classic" or "modern" or "cat" or "neon" or "glass")) throw new InvalidDataException("테마의 색상 또는 배치 값이 올바르지 않습니다.");
+        if (new[] { Background, Surface, Accent, Text }.Any(x => !ValidColor(x)) || Slots < 5 || Slots > 9 || !double.IsFinite(IconSize) || IconSize < 28 || IconSize > 48 || !double.IsFinite(Radius) || Radius < 280 || Radius > 315 || !double.IsFinite(Gap) || Gap < .3 || Gap > 2.5 || Frame is not ("rounded" or "circle" or "minimal") || Design is not ("classic" or "modern" or "cat" or "neon" or "glass" or "paper")) throw new InvalidDataException("테마의 색상 또는 배치 값이 올바르지 않습니다.");
     }
     internal Brush B(string color) => UI.Brush(color);
     internal Brush Blend(string first, string second, double amount)
@@ -34,18 +34,21 @@ public sealed class ThemeSettings
         return new SolidColorBrush(Color.FromRgb((byte)(a.R + (b.R - a.R) * amount), (byte)(a.G + (b.G - a.G) * amount), (byte)(a.B + (b.B - a.B) * amount)));
     }
     public static IReadOnlyList<ThemeSettings> DesignPresets => new[] {
-        new ThemeSettings { Name="모던 스튜디오",Design="modern",Background="#F3F5F9",Surface="#FFFFFF",Accent="#326AF4",Text="#27364A",Frame="rounded",Gap=.45,IconSize=38 },
-        new ThemeSettings { Name="고양이 다락",Design="cat",Background="#FFF2E2",Surface="#F8DBC7",Accent="#BE7183",Text="#684A42",Frame="rounded",Gap=1.1 },
-        new ThemeSettings { Name="네온 아케이드",Design="neon",Background="#100F23",Surface="#24203E",Accent="#49F4E6",Text="#F8FAFF",Frame="circle",Gap=1.5 },
-        new ThemeSettings { Name="글래스 스카이",Design="glass",Background="#142B45",Surface="#476B8F",Accent="#B2E9FF",Text="#F4FBFF",Frame="rounded",Gap=1.1 }
+        new ThemeSettings {Name="모던 도크",Design="modern",Background="#F3F5F9",Surface="#FFFFFF",Accent="#326AF4",Text="#27364A",Slots=7,IconSize=38},
+        new ThemeSettings {Name="고양이 포켓",Design="cat",Background="#FFF2E2",Surface="#F8DBC7",Accent="#BE7183",Text="#684A42",Slots=6},
+        new ThemeSettings {Name="네온 노드",Design="neon",Background="#100F23",Surface="#24203E",Accent="#49F4E6",Text="#F8FAFF",Frame="circle"},
+        new ThemeSettings {Name="카드 보드",Design="paper",Background="#F6F0E5",Surface="#FFFCF5",Accent="#A56C36",Text="#4B3B2C",Slots=8,IconSize=36}
     };
     public static IReadOnlyList<ThemeSettings> Presets => new[] {
         new ThemeSettings(),
-        new ThemeSettings { Name="라벤더 문", Background="#242038", Surface="#403755", Accent="#C7ACF8", Text="#F6F0FF", Frame="circle" },
-        new ThemeSettings { Name="딸기 밀크", Background="#F4E6EC", Surface="#EAD2DF", Accent="#AC3C6C", Text="#542A40", Frame="rounded", Gap=1.3 },
-        new ThemeSettings { Name="바닐라 라테", Background="#EEE6D5", Surface="#DDD1B9", Accent="#80552B", Text="#443526", Frame="minimal", Slots=6, IconSize=42 },
-        new ThemeSettings { Name="오션 블루", Background="#102C40", Surface="#23516B", Accent="#76D8FF", Text="#ECF8FF", Frame="circle", Gap=1.4 },
-        new ThemeSettings { Name="네온 오빗", Background="#151523", Surface="#282737", Accent="#D9EE77", Text="#F4F5E9", Frame="minimal", Slots=8, IconSize=36, Gap=1.8 }
+        new ThemeSettings {Name="라벤더 문",Background="#242038",Surface="#403755",Accent="#C7ACF8",Text="#F6F0FF",Frame="circle"},
+        new ThemeSettings {Name="딸기 밀크",Background="#F4E6EC",Surface="#EAD2DF",Accent="#AC3C6C",Text="#542A40",Gap=1.3},
+        new ThemeSettings {Name="바닐라 라테",Background="#EEE6D5",Surface="#DDD1B9",Accent="#80552B",Text="#443526",Frame="minimal",Slots=6,IconSize=42},
+        new ThemeSettings {Name="네온 오빗",Background="#151523",Surface="#282737",Accent="#D9EE77",Text="#F4F5E9",Frame="minimal",Slots=8,IconSize=36},
+        new ThemeSettings {Name="클라우드 화이트",Background="#F3F5F9",Surface="#FFFFFF",Accent="#326AF4",Text="#27364A"},
+        new ThemeSettings {Name="피치 크림",Background="#FFF2E2",Surface="#F8DBC7",Accent="#BE7183",Text="#684A42"},
+        new ThemeSettings {Name="네온 민트",Background="#100F23",Surface="#24203E",Accent="#49F4E6",Text="#F8FAFF"},
+        new ThemeSettings {Name="크림 페이퍼",Background="#F6F0E5",Surface="#FFFCF5",Accent="#A56C36",Text="#4B3B2C"}
     };
 }
 
@@ -61,9 +64,9 @@ public sealed class SavedTheme
 internal sealed class ColorWindow : Window
 {
     internal string Result {get;private set;}
-    public ColorWindow(string value)
+    public ColorWindow(string value, ThemeSettings? theme=null)
     {
-        Result=value; UI.Theme(this);Title="색상 선택";Width=390;Height=390;ResizeMode=ResizeMode.NoResize;ShowInTaskbar=false;WindowStartupLocation=WindowStartupLocation.CenterOwner;
+        Result=value; UI.Theme(this,theme);Title="색상 선택";Width=390;Height=390;ResizeMode=ResizeMode.NoResize;ShowInTaskbar=false;WindowStartupLocation=WindowStartupLocation.CenterOwner;
         var panel=new StackPanel {Margin=new Thickness(24)};Content=panel;
         var swatch=new Border {Height=75,CornerRadius=new CornerRadius(14),Background=UI.Brush(value)};panel.Children.Add(swatch);var code=UI.Text(value,18);code.Margin=new Thickness(0,12,0,8);panel.Children.Add(code);
         var color=(Color)ColorConverter.ConvertFromString(value);var channels=new List<Slider>();

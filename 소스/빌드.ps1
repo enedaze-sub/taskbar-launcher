@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $taskBuildOutput = $args | Select-Object -First 1
 $env:DOTNET_CLI_HOME = Join-Path $PSScriptRoot '..\중간파일\dotnet-home'
 $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
@@ -48,3 +48,5 @@ Add-Type -Path (Join-Path $sdk.FullName 'Microsoft.NET.HostModel.dll')
 '@ | Set-Content -LiteralPath (Join-Path $outDir 'DeckLauncher.runtimeconfig.json') -Encoding utf8
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'launcher.ico') -Destination (Join-Path $outDir 'launcher.ico') -Force
 if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'Fonts')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Fonts') -Destination $outDir -Recurse -Force }
+
+if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'Assets')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Assets') -Destination $outDir -Recurse -Force }

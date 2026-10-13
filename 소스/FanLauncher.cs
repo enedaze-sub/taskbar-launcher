@@ -34,15 +34,17 @@ public sealed partial class LauncherWindow : Window
     private Brush T(string color) => UI.Brush(color);
     private Brush Tone(double amount) => Theme.Blend(Theme.Background, Theme.Surface, amount);
     private Brush AccentTone(double amount) => Theme.Blend(Theme.Surface, Theme.Accent, amount);
-    private Brush MutedTone => Theme.Blend(Theme.Text, Theme.Background, .35);
+    private Brush MutedTone => Theme.Blend(Theme.Text, Theme.Background, .18);
     private bool modal;
+    private OutsideClickWatcher? clickWatcher;
+    private ContextMenu? settingsContext;
     private readonly bool previewMode;
     private string? backgroundOverride, backgroundKey;
     private BitmapSource? backgroundImage;
     private readonly Canvas fan = new() { Width = 920, Height = 454 };
     private readonly Grid root = new();
     private readonly TextBlock title = UI.Text("", 23);
-    private readonly TextBlock note = UI.Text("", 13, UI.Muted);
+    private readonly TextBlock note = UI.Text("", 16, UI.Muted);
     private readonly TextBlock tag = UI.Text("", 10, UI.Accent);
     private readonly TextBlock pageLabel = UI.Text("", 11, UI.Muted);
     private readonly Dictionary<string, int> pages = new();
@@ -62,7 +64,7 @@ public sealed partial class LauncherWindow : Window
     {
         this.store = store; this.library = library; this.previewMode = previewMode;
         dialHost.Clip=Sector(216,380,-180,0);dialHost.Children.Add(dial);
-        UI.Theme(this); Title = "작업표시줄 런처";
+        root.Tag="keep-colors"; UI.Theme(this,library.Theme); Title = "작업표시줄 런처";
         Width = 920; Height = 454; WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
         AllowsTransparency = true; Background = Brushes.Transparent; Topmost = false;
         if (File.Exists(System.IO.Path.Combine(AppContext.BaseDirectory, "launcher.ico"))) Icon = Native.LoadImage(System.IO.Path.Combine(AppContext.BaseDirectory, "launcher.ico"));
@@ -70,7 +72,8 @@ public sealed partial class LauncherWindow : Window
         fan.RenderTransform = unfolding; fan.RenderTransformOrigin = new Point(.5, 1); fan.IsHitTestVisible = !previewMode;
         if (previewMode) KeyboardNavigation.SetTabNavigation(fan, KeyboardNavigationMode.None);
         title.FontFamily = UI.DisplayFont;
-        SourceInitialized += (_, _) => Native.ConfigureTaskbar(this);
+        SourceInitialized += (_, _) => { Native.ConfigureTaskbar(this);if(!previewMode && ShowActivated)clickWatcher=new OutsideClickWatcher(point=>Dispatcher.BeginInvoke(new Action(()=>HandleScreenClick(point)))); };
+        Closed+=(_,_)=>clickWatcher?.Dispose();
         Loaded += async (_, _) => { if (!previewMode && ShowActivated) { await PositionAtTaskbarAsync(); AnimateOpen(); } };
         Activated += async (_, _) => { if (!previewMode && ShowActivated && !modal) await PositionAtTaskbarAsync(); };
         DpiChanged += async (_, _) => { if (!previewMode && ShowActivated && IsVisible && !modal) await PositionAtTaskbarAsync(); };
@@ -85,8 +88,34 @@ public sealed partial class LauncherWindow : Window
         };
         MouseWheel += (_, e) => { if(library.WheelDialEnabled) RotateDial(e.Delta < 0 ? 1 : -1); e.Handled = true; };
         IsVisibleChanged += (_, _) => { if (!IsVisible) CloseFolderPreview(); };
-        Deactivated += (_, _) => Dispatcher.BeginInvoke(new Action(() => { if (!IsActive && !folderPreviews.Any(w => w.IsActive)) CloseFolderPreview(); }), System.Windows.Threading.DispatcherPriority.Background);
+        Deactivated += (_, _) => Dispatcher.BeginInvoke(new Action(HandleFocusLoss), System.Windows.Threading.DispatcherPriority.Background);
         Refresh(); if (!previewMode) PositionAtTaskbar(null);
+    }
+    internal void HandleScreenClick(Point screen)
+    {
+        if(!IsVisible || previewMode || modal)return;
+        try
+        {
+            if(ShellGeometry().FillContains(fan.PointFromScreen(screen)))return;
+            foreach(Window window in OwnedWindows)
+            {
+                if(!window.IsVisible)continue;var local=window.PointFromScreen(screen);
+                if(new Rect(0,0,window.ActualWidth,window.ActualHeight).Contains(local))return;
+            }
+            foreach(var menu in slots.Values.Select(b=>b.ContextMenu).Append(settingsContext).Where(m=>m?.IsOpen==true))
+            {
+                var local=menu!.PointFromScreen(screen);if(new Rect(0,0,menu.ActualWidth,menu.ActualHeight).Contains(local))return;
+            }
+        }
+        catch { }
+        if(settingsContext!=null)settingsContext.IsOpen=false;
+        foreach(var button in slots.Values)if(button.ContextMenu!=null)button.ContextMenu.IsOpen=false;
+        Hide();
+    }
+    internal void HandleFocusLoss()
+    {
+        if(previewMode || modal || IsActive || OwnedWindows.Cast<Window>().Any(w=>w.IsActive) || slots.Values.Any(b=>b.ContextMenu?.IsOpen==true) || settingsContext?.IsOpen==true)return;
+        Hide();CloseFolderPreview();
     }
     private async System.Threading.Tasks.Task PositionAtTaskbarAsync()
         => PositionAtTaskbar(await TaskbarAnchor.FindAsync());
@@ -145,7 +174,7 @@ public sealed partial class LauncherWindow : Window
         if(!library.WheelDialEnabled) { dialMode=false; dialStart=page*Theme.Slots; }
         fan.Children.Clear(); slots.Clear(); title.Foreground=T(Theme.Text);note.Foreground=MutedTone;tag.Foreground=T(Theme.Accent);pageLabel.Foreground=MutedTone;note.Visibility=Theme.ShowNotes?Visibility.Visible:Visibility.Collapsed;page = Math.Clamp(page, 0, PageCount - 1);
         // The window outside this shape remains transparent and does not intercept clicks.
-        var shell = new WpfPath { Data = Sector(0.01, 390, -180, 0), Fill = Tone(.2), Stroke = AccentTone(.25), StrokeThickness = 1, Effect = Shadow(26, .48) };
+        var shell = new WpfPath { Data = ShellGeometry(), Fill = Tone(.2), Stroke = AccentTone(.25), StrokeThickness = 1, Effect = Shadow(26, .48) };
         StyleShell(shell); fan.Children.Add(shell);
         string? imagePath = backgroundOverride ?? (library.Background.ImageFile != null ? store.IconPath(library.Background.ImageFile) : null);
         if (backgroundKey != imagePath)
@@ -154,13 +183,16 @@ public sealed partial class LauncherWindow : Window
             try { if (imagePath != null) backgroundImage = (BitmapSource)Native.LoadImage(imagePath, 1920); } catch { }
         }
         bool hasBackground = backgroundImage != null;
-        if (hasBackground) fan.Children.Add(BackgroundTools.Layer(backgroundImage!, library.Background));
-        var outerLine = new WpfPath { Data = Sector(386, 388, -177, -3), Fill = T(Theme.Accent), IsHitTestVisible = false, Opacity = .6 }; fan.Children.Add(outerLine);
+        if (hasBackground) fan.Children.Add(BackgroundTools.Layer(backgroundImage!, library.Background,ShellGeometry()));
+        var outerLine = new WpfPath { Data = Sector(386, 388, -177, -3), Fill = T(Theme.Accent), IsHitTestVisible = false, Opacity = .6 }; if(!AlternateLayout)fan.Children.Add(outerLine);
         DrawShellDecorations();
         var all = library.Children(current).ToList();
         dialStart=all.Count==0?0:((dialStart%all.Count)+all.Count)%all.Count;
         var visible = dialMode && all.Count>0 ? Enumerable.Range(0, Math.Min(Theme.Slots,all.Count)).Select(i=>all[(dialStart+i)%all.Count]).ToList() : all.Skip(page * Theme.Slots).Take(Theme.Slots).ToList();
         fan.Children.Add(dialHost);
+        if(AlternateLayout)AddAlternateSlots(visible); else
+        {
+        dialHost.Clip=Sector(216,380,-180,0);
         int count = visible.Count switch { 0 or 1 or 3 => 5, 2 or 4 => 6, _ => visible.Count };
         int offset = (count - visible.Count) / 2;
         double span = dialSpan = 178.0 / count;
@@ -175,20 +207,21 @@ public sealed partial class LauncherWindow : Window
             }
             AddSlot(visible[entryIndex], geometry, (start + end) / 2);
         }
-        var inner = new WpfPath { Data = Sector(.01, 205, -180, 0), Fill = Tone(.14), Stroke = AccentTone(.18), StrokeThickness = 1, IsHitTestVisible = false }; fan.Children.Add(inner);
+        }
+        var inner = new WpfPath { Data = HubGeometry(), Fill = Tone(.14), Stroke = AccentTone(.18), StrokeThickness = 1, IsHitTestVisible = false }; fan.Children.Add(inner);
         if (hasBackground) inner.Fill.Opacity = .65; StyleHub(inner); DrawHubDecorations();
-        var info = new StackPanel { Width = 310, HorizontalAlignment = HorizontalAlignment.Center, IsHitTestVisible = false };
-        tag.TextAlignment = TextAlignment.Center; tag.Margin = new Thickness(0, 0, 0, 7);
+        var info = new StackPanel { Width = InfoBox.Width, HorizontalAlignment = HorizontalAlignment.Center, IsHitTestVisible = false };
+        tag.Visibility=AlternateLayout && Theme.Design!="neon"?Visibility.Collapsed:Visibility.Visible;tag.TextAlignment = TextAlignment.Center; tag.Margin = new Thickness(0, 0, 0, 7);
         title.TextAlignment = TextAlignment.Center; title.TextTrimming = TextTrimming.CharacterEllipsis; title.TextWrapping = TextWrapping.NoWrap; title.FontWeight = FontWeights.Medium;
-        note.TextAlignment = TextAlignment.Center; note.TextWrapping = TextWrapping.Wrap; note.Margin = new Thickness(8, 9, 8, 0); note.MaxHeight = 57; note.LineHeight = 19; note.TextTrimming = TextTrimming.CharacterEllipsis;
-        info.Children.Add(tag); info.Children.Add(title); info.Children.Add(note); Place(fan, info, 305, 278);
+        note.TextAlignment = TextAlignment.Center; note.TextWrapping = TextWrapping.Wrap; note.Margin = new Thickness(8, 9, 8, 0); note.FontFamily=UI.DisplayFont;note.FontSize=15;note.MaxHeight=48;note.LineHeight=24;note.LineStackingStrategy=LineStackingStrategy.BlockLineHeight; note.TextTrimming = TextTrimming.CharacterEllipsis;
+        info.Children.Add(tag); info.Children.Add(title); info.Children.Add(note); Place(fan, info, InfoBox.X, InfoBox.Y);
         var back = RoundButton(current == null ? "\uE80F" : "\uE72B", current == null ? "처음으로" : "상위 폴더", () => Navigate(library.Find(current)?.ParentId)); back.Opacity = current == null ? .5 : 1;
         back.ToolTip = current == null ? "라이브러리 · 여기로 끌어 꺼내기" : "상위 폴더 · 여기로 끌어 꺼내기";
         SetupFanDrop(back, library.Find(current)?.ParentId);
         Place(fan, back, 359, 403);
         var settings = RoundButton("\uE713", "설정 · 파일 / 폴더 / 이미지 / 메모", Manage, true); Place(fan, settings, 435, 396);
         var hide = RoundButton("\uE711", "숨기기 (Esc)", Hide); Place(fan, hide, 513, 403);
-        var settingsMenu = new ContextMenu(); settingsMenu.Items.Add(UI.Menu("설정 열기", Manage)); settingsMenu.Items.Add(UI.Menu("런처 종료", () => Application.Current.Shutdown())); settings.ContextMenu = settingsMenu;
+        var settingsMenu = new ContextMenu(); settingsMenu.Items.Add(UI.Menu("설정 열기", Manage)); settingsMenu.Items.Add(UI.Menu("런처 종료", () => Application.Current.Shutdown())); settings.ContextMenu = settingsMenu; settingsContext=settingsMenu;
         if (PageCount > 1)
         {
             var previous = RoundButton("\uE76B", "이전 페이지", () => ChangePage(-1)); previous.Width = previous.Height = 32; previous.IsEnabled = page > 0; Place(fan, previous, 320, 409);
@@ -215,15 +248,27 @@ public sealed partial class LauncherWindow : Window
         {
             try { if(!slotImages.TryGetValue(slotPath,out var bitmap))slotImages[slotPath]=bitmap=(BitmapSource)Native.LoadImage(slotPath,1024);contents.Children.Add(BackgroundTools.Layer(bitmap,entry.Background,geometry)); } catch { }
         }
-        var point = Polar(Theme.Radius, angle);
+        var point = IconPoint(geometry,angle);
         var iconFrame = new Border { Width = 60, Height = 60, CornerRadius = new CornerRadius(Theme.Frame=="circle"?30:17), Background = Theme.Frame=="minimal"?Brushes.Transparent:AccentTone(.12), BorderBrush = Theme.Frame=="minimal"?Brushes.Transparent:AccentTone(.3), BorderThickness = new Thickness(.7), Effect = Shadow(12, .28), RenderTransformOrigin = new Point(.5, .5), RenderTransform = new ScaleTransform(1, 1), IsHitTestVisible = false };
         ImageSource? source = IconFor(entry);
         iconFrame.Child = source != null ? new Image { Source = source, Width = Theme.IconSize, Height = Theme.IconSize, Stretch = Stretch.Uniform } : new TextBlock { Text = "↗", FontSize = 28, Foreground = UI.Accent, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        StyleIconFrame(iconFrame); Place(contents, iconFrame, point.X - 30, point.Y - 38); DrawSlotDecorations(contents,point);
-        var name = new TextBlock { Text = entry.Name, Width = 95, FontSize = 14, FontFamily = UI.DisplayFont, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = T(Theme.Text), IsHitTestVisible = false, Visibility=Theme.ShowLabels?Visibility.Visible:Visibility.Collapsed }; Place(contents, name, point.X - 47.5, point.Y + 31);
+        StyleIconFrame(iconFrame); if(AlternateLayout && Theme.Design!="neon")
+        {
+            double size=Theme.Design=="cat"?Math.Min(42,geometry.Bounds.Height-4):Theme.Design=="paper" && geometry.Bounds.Height<80?36:50;iconFrame.Width=iconFrame.Height=size;
+            if(iconFrame.Child is Image image){image.Width=image.Height=Math.Min(Theme.IconSize,size-4);}
+            Place(contents,iconFrame,Theme.Design=="cat"?geometry.Bounds.X+8:point.X-size/2,Theme.Design=="cat"?point.Y-size/2:geometry.Bounds.Y+7);
+        }
+        else Place(contents,iconFrame,point.X-30,point.Y-38);DrawSlotDecorations(contents,point);
+        var name = new TextBlock { Text = entry.Name, Width = 95, FontSize = 14, FontFamily = UI.DisplayFont, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = T(Theme.Text), IsHitTestVisible = false, Visibility=Theme.ShowLabels?Visibility.Visible:Visibility.Collapsed }; if(AlternateLayout && Theme.Design!="neon")
+        {
+            name.Width=Theme.Design=="cat"?geometry.Bounds.Width-62:geometry.Bounds.Width-8;name.FontSize=14;
+            name.TextAlignment=Theme.Design=="cat"?TextAlignment.Left:TextAlignment.Center;
+            Place(contents,name,Theme.Design=="cat"?geometry.Bounds.X+57:geometry.Bounds.X+4,Theme.Design=="cat"?point.Y-9:geometry.Bounds.Bottom-(Theme.Design=="paper" && geometry.Bounds.Height<80?24:28));
+        }
+        else Place(contents,name,point.X-47.5,point.Y+(Theme.Design=="neon"?42:31));
         if (entry.IsFolder)
         {
-            var badge = new Border { Background = T(Theme.Accent), CornerRadius = new CornerRadius(8), Padding = new Thickness(5, 1, 5, 1), IsHitTestVisible = false, Child = UI.Text(library.Children(entry.Id).Count().ToString(), 9, T(Theme.Background)) }; Place(contents, badge, point.X + 13, point.Y + 3);
+            var badge = new Border { Background = T(Theme.Accent), CornerRadius = new CornerRadius(8), Padding = new Thickness(5, 1, 5, 1), IsHitTestVisible = false, Child = UI.Text(library.Children(entry.Id).Count().ToString(), 9, T(Theme.Background)) }; Place(contents,badge,AlternateLayout && Theme.Design!="neon"?geometry.Bounds.Right-22:point.X+13,AlternateLayout && Theme.Design!="neon"?geometry.Bounds.Y+4:point.Y+3);
         }
         button.Content = contents;
         void Highlight(bool active)
@@ -270,7 +315,7 @@ public sealed partial class LauncherWindow : Window
     {
         tag.Text = current == null ? Theme.Design switch { "cat" => "H E L L O ,   H U M A N", "neon" => "R E A D Y   T O   L A U N C H", "modern" => "M Y   W O R K S P A C E", "glass" => "Y O U R   S P A C E", _ => "Q U I C K   L A U N C H" } : "F O L D E R";
         title.Text = library.Find(current)?.Name ?? "나의 바로가기";
-        note.Text = library.Children(current).Any() ? "자주 쓰는 것들을 한 번에.\n실행할 아이콘을 선택하세요." : "아직 등록된 항목이 없어요.\n아래 설정 버튼에서 추가해 주세요.";
+        note.Text = library.Children(current).Any() ? AlternateLayout && Theme.Design!="neon" ? "자주 쓰는 것들을 한 번에. 실행할 아이콘을 선택하세요." : "자주 쓰는 것들을 한 번에.\n실행할 아이콘을 선택하세요." : "아직 등록된 항목이 없어요.\n아래 설정 버튼에서 추가해 주세요.";
     }
     internal void ShowNote(Entry entry)
     {
@@ -290,6 +335,7 @@ public sealed partial class LauncherWindow : Window
         dialStart=((dialStart+direction)%total+total)%total;dialMode=true;page=dialStart/Theme.Slots;Refresh();
         if(!previewMode && ShowActivated)
         {
+            if(AlternateLayout && Theme.Design!="neon"){var slide=new TranslateTransform(direction*35,0);dial.RenderTransform=slide;slide.BeginAnimation(TranslateTransform.XProperty,new DoubleAnimation(0,TimeSpan.FromMilliseconds(180)));return;}
             var rotation=new RotateTransform(-direction*dialSpan,460,453);dial.RenderTransform=rotation;
             rotation.BeginAnimation(RotateTransform.AngleProperty,new DoubleAnimation(0,TimeSpan.FromMilliseconds(210)){EasingFunction=new CubicEase{EasingMode=EasingMode.EaseOut}});
             dial.BeginAnimation(OpacityProperty,new DoubleAnimation(.65,1,TimeSpan.FromMilliseconds(170)));
@@ -322,10 +368,10 @@ public sealed partial class LauncherWindow : Window
     {
         CloseFolderPreview(); modal=true;try { var dialog=new BackgroundWindow(store,library,entry){Owner=this};if(dialog.ShowDialog()==true){entry.Background=dialog.Result!;store.Save(library);Refresh();} }finally{modal=false;}
     }
-    private void Open(Entry entry)
+    internal void Open(Entry entry)
     {
         if (entry.IsFolder) { Navigate(entry.Id); return; }
-        try { using var process = Launch.Start(entry); if (library.HideAfterLaunch) Hide(); }
+        try { using var process = Launch.Start(entry); Hide(); }
         catch (Exception ex) { modal = true; try { UI.Error(ex); } finally { modal = false; } }
     }
     private void Manage()
@@ -345,7 +391,7 @@ public sealed partial class LauncherWindow : Window
         CloseFolderPreview(); modal = true;
         try
         {
-            var editor = new EditorWindow(store, entry) { Owner = this, Topmost = false, WindowStartupLocation = WindowStartupLocation.CenterScreen };
+            var editor = new EditorWindow(store, entry,library.Theme) { Owner = this, Topmost = false, WindowStartupLocation = WindowStartupLocation.CenterScreen };
             if (editor.ShowDialog() == true) { library.Entries[library.Entries.IndexOf(entry)] = editor.Result!; store.Save(library); icons.Clear(); Refresh(); }
         }
         finally { modal = false; if (IsVisible) Activate(); }
