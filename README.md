@@ -12,7 +12,7 @@
 **필요한 것:** Windows 10/11 (x64), [.NET 6 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/6.0)
 
 ### 방법 1 · ZIP 내려받기
-1. [Releases](../../releases)에서 최신 `작업표시줄-런처-vX.zip`을 내려받아 압축을 풉니다.
+1. [Releases](../../releases)에서 최신 `taskbar-launcher-vX.zip`을 내려받아 압축을 풉니다.
 2. `실행파일\DeckLauncher.exe`를 실행합니다.
 3. 작업표시줄에 나타난 아이콘을 우클릭 → **작업 표시줄에 고정**.
 
