@@ -52,6 +52,12 @@ git clone https://github.com/enedaze-sub/taskbar-launcher.git
 | `backup/v1` … `backup/vN` | 각 버전 시점의 백업 브랜치 (태그 `v1` … `vN`과 같은 지점) |
 | Releases | 버전별 배포 ZIP (개인 데이터 미포함) |
 
-## 글꼴
+## 라이선스
+[![CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/deed.ko)
+
+이 프로젝트는 [크리에이티브 커먼즈 저작자표시-비영리 4.0 국제 라이선스(CC BY-NC 4.0)](https://creativecommons.org/licenses/by-nc/4.0/deed.ko)를 따릅니다.
+저작자(enedaze-sub)와 출처를 표시하면 자유롭게 복제·배포·수정할 수 있지만, **영리 목적으로는 이용할 수 없습니다.** 자세한 내용은 [LICENSE](LICENSE)를 보세요.
+
+### 함께 들어 있는 글꼴
 동봉 글꼴 [주아](https://fonts.google.com/specimen/Jua)·[고운돋움](https://fonts.google.com/specimen/Gowun+Dodum)은 SIL Open Font License를 따릅니다(`소스/Fonts/OFL.txt`).
 카페24 써라운드 등 PC에 설치된 글꼴은 동봉하지 않으며, 없으면 동봉 글꼴로 대체됩니다.
