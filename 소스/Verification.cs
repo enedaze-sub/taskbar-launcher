@@ -18,6 +18,7 @@ internal static class SelfTests
         {
             var store = new Store(Path.Combine(output, "test-data-" + Guid.NewGuid().ToString("N")));
             var lib = store.Load(); Check(lib.Entries.Count == 0, "First run creates an empty library");
+            Check(!lib.WheelDialEnabled,"Wheel dial is disabled by default for new libraries");
             string legacyFile = Path.Combine(store.DirectoryPath, "legacy.json");
             File.WriteAllText(legacyFile, "{\"Version\":1,\"Entries\":[{\"Id\":\"legacy\",\"Name\":\"기존 항목\"}]}");
             Check(Store.Read(legacyFile).Find("legacy")?.Note == "", "Previous library files remain compatible without note fields");
@@ -49,11 +50,13 @@ internal static class SelfTests
             lib.Background = new BackgroundSettings { ImageFile = store.CopyIcon(backgroundSource), Zoom = 1.45, OffsetX = .3, OffsetY = -.45, Darkness = .32 };
             item.Background=new BackgroundSettings { ImageFile=store.CopyIcon(backgroundSource),Zoom=1.7,OffsetX=-.4,Darkness=.25 };
             lib.Theme=ThemeSettings.Presets[0].Copy();lib.Theme.Name="테스트 테마";lib.Theme.Accent="#D7AFEF";
+            lib.CustomThemes.Add(new SavedTheme {Name="냥냥",Settings=ThemeSettings.DesignPresets[1].Copy()});
             var backupFile = Path.Combine(store.DirectoryPath, "backup.zip"); store.Backup(backupFile, lib);
             var backup = Store.ReadBackup(backupFile);
             var restored = store.Restore(backup);
             Check(restored.Find(item.Id)?.IconFile != copied && Native.LoadImage(store.IconPath(restored.Find(item.Id)!.IconFile!)) != null && restored.Trail(c.Id) == lib.Trail(c.Id), "ZIP backup restores hierarchy and custom images without overwriting old icons");
             Check(restored.Find(item.Id)!.Background.ImageFile!=item.Background.ImageFile && File.Exists(store.IconPath(restored.Find(item.Id)!.Background.ImageFile!)) && restored.Find(item.Id)!.Background.OffsetX==-.4,"ZIP backup restores per-slot images and independent crop settings");
+            Check(restored.CustomThemes.Single().Name=="냥냥" && restored.CustomThemes.Single().Settings.Design=="cat","Backup restores separately saved custom themes and their design style");
             Check(restored.Theme.Accent=="#D7AFEF" && restored.Theme.Name=="테스트 테마","ZIP backup preserves custom theme settings");
             Check(restored.Find(item.Id)?.Note == item.Note, "ZIP backup preserves user notes");
             Check(restored.Background.ImageFile != lib.Background.ImageFile && File.Exists(store.IconPath(restored.Background.ImageFile!)) && restored.Background.Zoom == lib.Background.Zoom && restored.Background.OffsetY == lib.Background.OffsetY, "ZIP backup restores background image and crop settings");
@@ -147,6 +150,12 @@ internal static class SelfTests
             radial.ChangePage(2); Check(radial.CurrentPage == 2 && radial.RenderedSlots == 4, "Last page displays remaining entries");
             radial.Navigate(null); radial.Navigate(c.Id); Check(radial.CurrentPage == 2, "Returning to a folder restores its page");
             radial.ChangePage(99); Check(radial.CurrentPage == 2, "Page navigation remains within bounds");
+            // Wheel is opt-in; use the real settings checkable menu to turn it on.
+            radial.ChangePage(-99);var defaultIds=radial.DisplayedIds.ToArray();
+            radial.RaiseEvent(new System.Windows.Input.MouseWheelEventArgs(System.Windows.Input.Mouse.PrimaryDevice,0,-120){RoutedEvent=UIElement.MouseWheelEvent});
+            Check(defaultIds.SequenceEqual(radial.DisplayedIds) && radial.DialStart==0,"Actual mouse wheel has no navigation effect with the default disabled preference");
+            var wheelSetting=win.SettingsMenu().Items.OfType<MenuItem>().First(m=>m.Header as string=="휠로 다이얼 돌리기");wheelSetting.IsChecked=true;wheelSetting.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            Check(lib.WheelDialEnabled && store.Load().WheelDialEnabled,"Settings menu explicitly enables wheel scrolling and persists it");
             // Wheel shifts one item at a time, including reverse wrapping and folder state.
             radial.ChangePage(-99);var ordered=lib.Children(c.Id).Select(e=>e.Id).ToList();
             radial.RotateDial(-1);Check(radial.DialStart==ordered.Count-1 && radial.DisplayedIds[0]==ordered[^1] && radial.RenderedSlots==7,"Reverse dial wraps to the last entry while keeping seven visible slots");
@@ -180,7 +189,7 @@ internal static class SelfTests
             Check(slotRect.Contains(sector.Bounds),"Per-slot images cover their curved slot at extreme crop offsets");
             var themeEditor=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};themeEditor.Show();themeEditor.UsePreset(ThemeSettings.Presets[2]);
             Check(lib.Theme.Name=="네온 오빗" && themeEditor.Draft.Name=="딸기 밀크","Theme preview edits are isolated until applying");
-            var colorBox=Find<TextBox>(themeEditor).First();colorBox.Text="#234567";Check(themeEditor.Draft.Background=="#234567" && themeEditor.Draft.Name=="내 커스텀 테마","Custom hex colors update the actual theme draft");
+            var colorBox=Find<TextBox>(themeEditor).First();colorBox.Text="#234567";Check(themeEditor.Draft.Background=="#234567" && themeEditor.Draft.Name.StartsWith("나의 테마"),"Custom hex colors update the actual theme draft");
             Find<Slider>(themeEditor).First(x=>x.Minimum==5).Value=9;Check(themeEditor.Draft.Slots==9,"Custom display layout supports nine slots");themeEditor.Close();
             var invalidEditor=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};
             bool invalidStayedOpen=false;
@@ -195,7 +204,32 @@ internal static class SelfTests
             var entryEditor=new EditorWindow(store,item){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};
             app.Dispatcher.BeginInvoke(new Action(()=>Find<Button>(entryEditor).First(x=>x.Content as string=="저장").RaiseEvent(new RoutedEventArgs(Button.ClickEvent))));
             Check(entryEditor.ShowDialog()==true && entryEditor.Result!.Background.ImageFile==item.Background.ImageFile && entryEditor.Result.Background.Zoom==item.Background.Zoom,"Editing an entry retains its per-slot background");
-            var stable=new Library{UiRevision=3,HideAfterLaunch=true};Check(stable.ApplyUiUpdate() && stable.HideAfterLaunch && stable.UiRevision==4,"Revision four preserves the user's existing launch preference");
+            var migratedCustom=new Library {UiRevision=4,Theme=new ThemeSettings {Name="내 커스텀 테마",Accent="#AABBCC"}};
+            Check(migratedCustom.ApplyUiUpdate() && migratedCustom.CustomThemes.Count==1 && migratedCustom.CustomThemes[0].Settings.Accent=="#AABBCC" && !migratedCustom.ApplyUiUpdate(),"Migration preserves the previous custom appearance in a separate saved theme exactly once");
+            var stable=new Library{UiRevision=3,HideAfterLaunch=true};Check(stable.ApplyUiUpdate() && stable.HideAfterLaunch && stable.UiRevision==5 && !stable.WheelDialEnabled,"Revision five preserves the launch preference and defaults wheel scrolling to disabled");
+            foreach(var design in ThemeSettings.DesignPresets){design.Validate();radial.UpdateTheme(design.Copy());Check(radial.library.Theme.Design==design.Design && radial.RenderedSlots>0,"New design renders with its dedicated style: "+design.Name);}
+            Check(ThemeSettings.Presets.Count==6 && ThemeSettings.DesignPresets.Count==4,"Six original color themes and four new designs remain separate collections");
+            var customEditor=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};customEditor.Show();
+            int oldCustomCount=lib.CustomThemes.Count;customEditor.UsePreset(ThemeSettings.DesignPresets[1]);customEditor.NewCustom();
+            Check(customEditor.SaveCustomNamed("냥냥 커스텀") && customEditor.CustomCount==oldCustomCount+1 && lib.CustomThemes.Count==oldCustomCount,"Creating a named custom theme uses a separate isolated collection");
+            var firstCustom=customEditor.SavedDraft.Last().Id;customEditor.UseSaved(firstCustom);customEditor.Draft.Accent="#AA6688";
+            Check(customEditor.SaveCustomNamed("냥냥 리본") && customEditor.CustomCount==oldCustomCount+1 && customEditor.SavedDraft.Last().Id==firstCustom,"Editing a saved custom theme retains its identity without duplicating it");
+            customEditor.NewCustom();customEditor.Draft.Design="neon";Check(customEditor.SaveCustomNamed("밤의 네온") && customEditor.CustomCount==oldCustomCount+2,"Multiple custom themes can be saved independently");
+            customEditor.UseSaved(firstCustom);Check(customEditor.Draft.Design=="cat" && customEditor.Draft.Accent=="#AA6688","Selecting a saved custom theme restores its individual colors and design");
+            var savedToDelete=customEditor.SavedDraft.Last().Id;customEditor.UseSaved(savedToDelete);Find<Button>(customEditor).First(b=>b.Content as string=="선택 테마 삭제").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(customEditor.CustomCount==oldCustomCount+1 && customEditor.SavedDraft.Any(t=>t.Id==firstCustom),"Deleting one saved custom theme preserves the others");
+            Check(ThemeSettings.Presets.Select(t=>t.Name).SequenceEqual(new[]{"민트 나이트","라벤더 문","딸기 밀크","바닐라 라테","오션 블루","네온 오빗"}),"Saving and deleting custom themes never changes the six built-in choices");
+            customEditor.Close();Check(lib.CustomThemes.Count==oldCustomCount,"Cancelling the custom editor leaves saved themes unchanged");
+            var customApply=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};
+            app.Dispatcher.BeginInvoke(new Action(()=>{customApply.UsePreset(ThemeSettings.DesignPresets[2]);customApply.NewCustom();customApply.SaveCustomNamed("저장할 네온");Find<Button>(customApply).First(b=>b.Content as string=="적용").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));}));
+            Check(customApply.ShowDialog()==true && customApply.Result!.Design=="neon" && customApply.SavedThemesResult!.Count==oldCustomCount+1,"Applying a custom theme returns both the selected appearance and named saved collection");
+            lib.Theme=customApply.Result!;lib.CustomThemes=customApply.SavedThemesResult!;store.Save(lib);
+            Check(store.Load().CustomThemes.Any(t=>t.Name=="저장할 네온" && t.Settings.Design=="neon"),"Named custom themes persist across reloads");
+            var customBackup=Path.Combine(store.DirectoryPath,"custom-backup.zip");store.Backup(customBackup,lib);Check(Store.ReadBackup(customBackup).Library.CustomThemes.Any(t=>t.Name=="저장할 네온"),"New custom themes are included in future library backups");
+            Check(Store.ReadBackup(customBackup).Library.WheelDialEnabled,"Library backups retain the opt-in wheel preference");
+            wheelSetting=win.SettingsMenu().Items.OfType<MenuItem>().First(m=>m.Header as string=="휠로 다이얼 돌리기");wheelSetting.IsChecked=false;wheelSetting.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));radial.Navigate(c.Id);radial.ChangePage(1);var noWheelIds=radial.DisplayedIds.ToArray();
+            radial.RaiseEvent(new System.Windows.Input.MouseWheelEventArgs(System.Windows.Input.Mouse.PrimaryDevice,0,-120){RoutedEvent=UIElement.MouseWheelEvent});
+            Check(!store.Load().WheelDialEnabled && noWheelIds.SequenceEqual(radial.DisplayedIds),"Disabling the settings toggle stops wheel navigation and keeps page buttons active");
             bool invalidTheme=false;try{new ThemeSettings{Accent="not-a-color"}.Validate();}catch(InvalidDataException){invalidTheme=true;}Check(invalidTheme,"Imported theme values are validated");
             bool displayFont = UI.DisplayFont.GetTypefaces().Any(x => x.TryGetGlyphTypeface(out var g) && g.FamilyNames.Values.Any(n => n == "Jua"));
             bool bodyFont = UI.RoundedFont.GetTypefaces().Any(x => x.TryGetGlyphTypeface(out var g) && g.FamilyNames.Values.Any(n => n == "Gowun Dodum"));
@@ -287,13 +321,14 @@ internal static class Preview
         var editor = new EditorWindow(store, lib.Entries.First(x => x.Name == "메모장")) { Owner = win, ShowActivated = false, WindowStartupLocation = WindowStartupLocation.Manual, Left = -19000, Top = -19000 };
         editor.Show(); Snapshot(editor, Path.Combine(output, "미리보기-아이콘편집.png")); editor.Close();
         win.UpdateBackground(new BackgroundSettings(),null);win.Navigate(null);
+        foreach(var preset in ThemeSettings.DesignPresets){win.UpdateTheme(preset.Copy());Snapshot(win,Path.Combine(output,"디자인-"+preset.Name+".png"));}
         foreach(var preset in ThemeSettings.Presets){win.UpdateTheme(preset.Copy());Snapshot(win,Path.Combine(output,"테마-"+preset.Name+".png"));}
         lib.Theme=ThemeSettings.Presets[0].Copy();win.UpdateTheme(lib.Theme);win.Navigate(null);win.ShowFolderPreview(work,win.Slot(work.Id)!);Snapshot(win.FolderPreview!,Path.Combine(output,"미리보기-옆폴더.png"));win.CloseFolderPreview();
-        var themeEditor=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};themeEditor.Show();Snapshot(themeEditor,Path.Combine(output,"미리보기-테마설정.png"));themeEditor.Close();
+        var themeEditor=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};themeEditor.Show();Snapshot(themeEditor,Path.Combine(output,"미리보기-테마설정.png"));themeEditor.UsePreset(ThemeSettings.DesignPresets[1]);Snapshot(themeEditor,Path.Combine(output,"미리보기-새디자인설정.png"));themeEditor.NewCustom();themeEditor.SaveCustomNamed("나의 고양이 다이얼");Snapshot(themeEditor,Path.Combine(output,"미리보기-커스텀설정.png"));themeEditor.Close();
         hoverEntry.Background=new BackgroundSettings { ImageFile=store.CopyIcon(backgroundPath),Zoom=1.3,OffsetX=.35,Darkness=.25 };
         win.UpdateTheme(lib.Theme);Snapshot(win,Path.Combine(output,"미리보기-칸배경.png"));
         var slotEditor=new BackgroundWindow(store,lib,hoverEntry){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};slotEditor.Show();Snapshot(slotEditor,Path.Combine(output,"미리보기-칸배경설정.png"));slotEditor.Close();
-        win.RotateDial(1);Snapshot(win,Path.Combine(output,"미리보기-휠순환.png"));
+        lib.WheelDialEnabled=true;win.RotateDial(1);Snapshot(win,Path.Combine(output,"미리보기-휠순환.png"));
         win.Hide(); app.Shutdown(); return 0;
     }
 }

@@ -83,7 +83,7 @@ public sealed partial class LauncherWindow : Window
             if (e.Key == Key.PageUp || e.Key == Key.Left && Keyboard.Modifiers == ModifierKeys.Control) { ChangePage(-1); e.Handled = true; }
             if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { Manage(); e.Handled = true; }
         };
-        MouseWheel += (_, e) => { RotateDial(e.Delta < 0 ? 1 : -1); e.Handled = true; };
+        MouseWheel += (_, e) => { if(library.WheelDialEnabled) RotateDial(e.Delta < 0 ? 1 : -1); e.Handled = true; };
         IsVisibleChanged += (_, _) => { if (!IsVisible) CloseFolderPreview(); };
         Deactivated += (_, _) => Dispatcher.BeginInvoke(new Action(() => { if (!IsActive && !folderPreviews.Any(w => w.IsActive)) CloseFolderPreview(); }), System.Windows.Threading.DispatcherPriority.Background);
         Refresh(); if (!previewMode) PositionAtTaskbar(null);
@@ -142,10 +142,11 @@ public sealed partial class LauncherWindow : Window
     {
         if (tag.Parent is Panel oldInfo) oldInfo.Children.Clear();
         CloseFolderPreview(); dial.Children.Clear(); slotShapes.Clear();
+        if(!library.WheelDialEnabled) { dialMode=false; dialStart=page*Theme.Slots; }
         fan.Children.Clear(); slots.Clear(); title.Foreground=T(Theme.Text);note.Foreground=MutedTone;tag.Foreground=T(Theme.Accent);pageLabel.Foreground=MutedTone;note.Visibility=Theme.ShowNotes?Visibility.Visible:Visibility.Collapsed;page = Math.Clamp(page, 0, PageCount - 1);
         // The window outside this shape remains transparent and does not intercept clicks.
         var shell = new WpfPath { Data = Sector(0.01, 390, -180, 0), Fill = Tone(.2), Stroke = AccentTone(.25), StrokeThickness = 1, Effect = Shadow(26, .48) };
-        fan.Children.Add(shell);
+        StyleShell(shell); fan.Children.Add(shell);
         string? imagePath = backgroundOverride ?? (library.Background.ImageFile != null ? store.IconPath(library.Background.ImageFile) : null);
         if (backgroundKey != imagePath)
         {
@@ -155,6 +156,7 @@ public sealed partial class LauncherWindow : Window
         bool hasBackground = backgroundImage != null;
         if (hasBackground) fan.Children.Add(BackgroundTools.Layer(backgroundImage!, library.Background));
         var outerLine = new WpfPath { Data = Sector(386, 388, -177, -3), Fill = T(Theme.Accent), IsHitTestVisible = false, Opacity = .6 }; fan.Children.Add(outerLine);
+        DrawShellDecorations();
         var all = library.Children(current).ToList();
         dialStart=all.Count==0?0:((dialStart%all.Count)+all.Count)%all.Count;
         var visible = dialMode && all.Count>0 ? Enumerable.Range(0, Math.Min(Theme.Slots,all.Count)).Select(i=>all[(dialStart+i)%all.Count]).ToList() : all.Skip(page * Theme.Slots).Take(Theme.Slots).ToList();
@@ -174,7 +176,7 @@ public sealed partial class LauncherWindow : Window
             AddSlot(visible[entryIndex], geometry, (start + end) / 2);
         }
         var inner = new WpfPath { Data = Sector(.01, 205, -180, 0), Fill = Tone(.14), Stroke = AccentTone(.18), StrokeThickness = 1, IsHitTestVisible = false }; fan.Children.Add(inner);
-        if (hasBackground) inner.Fill.Opacity = .65;
+        if (hasBackground) inner.Fill.Opacity = .65; StyleHub(inner); DrawHubDecorations();
         var info = new StackPanel { Width = 310, HorizontalAlignment = HorizontalAlignment.Center, IsHitTestVisible = false };
         tag.TextAlignment = TextAlignment.Center; tag.Margin = new Thickness(0, 0, 0, 7);
         title.TextAlignment = TextAlignment.Center; title.TextTrimming = TextTrimming.CharacterEllipsis; title.TextWrapping = TextWrapping.NoWrap; title.FontWeight = FontWeights.Medium;
@@ -207,7 +209,7 @@ public sealed partial class LauncherWindow : Window
         var contents = new Canvas { Width = 920, Height = 454 };
         var shape = new WpfPath { Data = geometry, Fill = Tone(1), Stroke = AccentTone(.2), StrokeThickness = .8 };
         if (backgroundImage != null) shape.Fill.Opacity = .35;
-        contents.Children.Add(shape);
+        StyleSlot(shape); contents.Children.Add(shape);
         string? slotPath = slotOverrides.GetValueOrDefault(entry.Id) ?? (entry.Background.ImageFile != null ? store.IconPath(entry.Background.ImageFile) : null);
         if (slotPath != null)
         {
@@ -217,7 +219,7 @@ public sealed partial class LauncherWindow : Window
         var iconFrame = new Border { Width = 60, Height = 60, CornerRadius = new CornerRadius(Theme.Frame=="circle"?30:17), Background = Theme.Frame=="minimal"?Brushes.Transparent:AccentTone(.12), BorderBrush = Theme.Frame=="minimal"?Brushes.Transparent:AccentTone(.3), BorderThickness = new Thickness(.7), Effect = Shadow(12, .28), RenderTransformOrigin = new Point(.5, .5), RenderTransform = new ScaleTransform(1, 1), IsHitTestVisible = false };
         ImageSource? source = IconFor(entry);
         iconFrame.Child = source != null ? new Image { Source = source, Width = Theme.IconSize, Height = Theme.IconSize, Stretch = Stretch.Uniform } : new TextBlock { Text = "↗", FontSize = 28, Foreground = UI.Accent, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        Place(contents, iconFrame, point.X - 30, point.Y - 38);
+        StyleIconFrame(iconFrame); Place(contents, iconFrame, point.X - 30, point.Y - 38); DrawSlotDecorations(contents,point);
         var name = new TextBlock { Text = entry.Name, Width = 95, FontSize = 14, FontFamily = UI.DisplayFont, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = T(Theme.Text), IsHitTestVisible = false, Visibility=Theme.ShowLabels?Visibility.Visible:Visibility.Collapsed }; Place(contents, name, point.X - 47.5, point.Y + 31);
         if (entry.IsFolder)
         {
@@ -226,7 +228,7 @@ public sealed partial class LauncherWindow : Window
         button.Content = contents;
         void Highlight(bool active)
         {
-            shape.Fill = active ? AccentTone(.32) : Tone(1);
+            shape.Fill = active ? AccentTone(.32) : SlotFill();
             if (backgroundImage != null) shape.Fill.Opacity = active ? .68 : .35;
             shape.Stroke = active ? T(Theme.Accent) : AccentTone(.2); shape.StrokeThickness = active ? 1.8 : .8;
             var transform = (ScaleTransform)iconFrame.RenderTransform; var animation = new DoubleAnimation(active ? 1.09 : 1, TimeSpan.FromMilliseconds(130)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
@@ -266,7 +268,7 @@ public sealed partial class LauncherWindow : Window
     }
     private void DefaultNote()
     {
-        tag.Text = current == null ? "Q U I C K   L A U N C H" : "F O L D E R";
+        tag.Text = current == null ? Theme.Design switch { "cat" => "H E L L O ,   H U M A N", "neon" => "R E A D Y   T O   L A U N C H", "modern" => "M Y   W O R K S P A C E", "glass" => "Y O U R   S P A C E", _ => "Q U I C K   L A U N C H" } : "F O L D E R";
         title.Text = library.Find(current)?.Name ?? "나의 바로가기";
         note.Text = library.Children(current).Any() ? "자주 쓰는 것들을 한 번에.\n실행할 아이콘을 선택하세요." : "아직 등록된 항목이 없어요.\n아래 설정 버튼에서 추가해 주세요.";
     }

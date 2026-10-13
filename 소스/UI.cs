@@ -278,7 +278,7 @@ public sealed class LibraryWindow : Window
     private void CustomizeTheme()
     {
         var dialog = new ThemeWindow(store, library) { Owner = this };
-        if (dialog.ShowDialog() == true) { library.Theme = dialog.Result!; Commit(); }
+        if (dialog.ShowDialog() == true) { library.Theme = dialog.Result!; library.CustomThemes = dialog.SavedThemesResult!; Commit(); }
     }
     private void CustomizeSlot(Entry entry)
     {
@@ -355,9 +355,12 @@ public sealed class LibraryWindow : Window
         }
         catch (Exception ex) { UI.Error(ex); }
     }
-    private void ShowSettings()
+    private void ShowSettings() { var menu = SettingsMenu(); menu.IsOpen = true; }
+    internal ContextMenu SettingsMenu()
     {
         var menu = new ContextMenu();
+        var wheel = new MenuItem { Header = "휠로 다이얼 돌리기", IsCheckable = true, IsChecked = library.WheelDialEnabled };
+        wheel.Click += (_, _) => { library.WheelDialEnabled = wheel.IsChecked; Commit(); }; menu.Items.Add(wheel);
         var hide = new MenuItem { Header = "실행 후 런처 숨기기", IsCheckable = true, IsChecked = library.HideAfterLaunch };
         hide.Click += (_, _) => { library.HideAfterLaunch = hide.IsChecked; Commit(); }; menu.Items.Add(hide);
         menu.Items.Add(UI.Menu("테마 / 색상 / 배치…", CustomizeTheme)); menu.Items.Add(UI.Menu("런처 배경 꾸미기…", CustomizeBackground));
@@ -369,7 +372,7 @@ public sealed class LibraryWindow : Window
         menu.Items.Add(new Separator()); menu.Items.Add(UI.Menu("라이브러리 백업…", Export)); menu.Items.Add(UI.Menu("백업 복원…", Import));
         menu.Items.Add(UI.Menu("저장 폴더 열기", () => Process.Start(new ProcessStartInfo(store.DirectoryPath) { UseShellExecute = true })));
         menu.Items.Add(UI.Menu("작업표시줄 고정 방법", () => MessageBox.Show(this, "1. 이 창이 열려 있는 상태에서 작업표시줄의 런처 아이콘을 우클릭합니다.\n2. ‘작업 표시줄에 고정’을 선택합니다.\n\n고정 후에는 아이콘 하나로 라이브러리를 열 수 있습니다.\n실행파일 폴더는 고정 후에도 같은 위치에 보관해 주세요.\n\n파일 등록: 끌어다 놓기 또는 ‘파일 등록’\n가상 폴더: ‘＋ 폴더’ → 항목 우클릭 → ‘폴더로 이동’\n아이콘 변경: 항목 우클릭 → ‘편집 / 아이콘 변경’\n\n실제 폴더도 끌어다 놓으면 탐색기로 여는 바로가기가 됩니다.", "사용 안내")));
-        menu.Items.Add(new Separator()); menu.Items.Add(UI.Menu("런처 종료", () => Application.Current.Shutdown())); menu.IsOpen = true;
+        menu.Items.Add(new Separator()); menu.Items.Add(UI.Menu("런처 종료", () => Application.Current.Shutdown())); return menu;
     }
     private void Export()
     {

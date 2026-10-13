@@ -23,6 +23,8 @@ public sealed class Library
     public int Version { get; set; } = 1;
     public int UiRevision { get; set; }
     public bool HideAfterLaunch { get; set; }
+    public bool WheelDialEnabled { get; set; }
+    public List<SavedTheme> CustomThemes { get; set; } = new();
     public BackgroundSettings Background { get; set; } = new();
     public ThemeSettings Theme { get; set; } = new();
     public List<Entry> Entries { get; set; } = new();
@@ -31,8 +33,12 @@ public sealed class Library
     public Entry? Find(string? id) => Entries.FirstOrDefault(e => e.Id == id);
     public bool ApplyUiUpdate()
     {
-        if (UiRevision >= 4) return false;
-        if (UiRevision < 3) HideAfterLaunch = false; UiRevision = 4; return true;
+        if (UiRevision >= 5) return false;
+        if (UiRevision < 3) HideAfterLaunch = false;
+        WheelDialEnabled = false;
+        if (!ThemeSettings.Presets.Concat(ThemeSettings.DesignPresets).Any(t => t.Name == Theme.Name) && !CustomThemes.Any(t => t.Settings.Name == Theme.Name))
+            CustomThemes.Add(new SavedTheme { Name = Theme.Name, Settings = Theme.Copy() });
+        UiRevision = 5; return true;
     }
     public bool MoveEntries(IEnumerable<string> ids, string? parent)
     {
@@ -87,7 +93,13 @@ public sealed class Library
     }
     public void Validate()
     {
-        Background ??= new(); Background.Validate(); Theme ??= new(); Theme.Validate();
+        Background ??= new(); Background.Validate(); Theme ??= new(); Theme.Validate(); CustomThemes ??= new();
+        var themeIds = new HashSet<string>();
+        foreach (var saved in CustomThemes)
+        {
+            if (string.IsNullOrWhiteSpace(saved.Id) || !themeIds.Add(saved.Id) || string.IsNullOrWhiteSpace(saved.Name) || saved.Name.Length > 40 || saved.Settings == null) throw new InvalidDataException("커스텀 테마 정보가 올바르지 않습니다.");
+            saved.Settings.Validate();
+        }
         if (Version != 1) throw new InvalidDataException("지원하지 않는 라이브러리 버전입니다.");
         var ids = new HashSet<string>();
         foreach (var e in Entries)
