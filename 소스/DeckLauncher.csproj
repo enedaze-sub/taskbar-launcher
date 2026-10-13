@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>DeckLauncher</AssemblyName>
+    <RootNamespace>DeckLauncher</RootNamespace>
+    <ApplicationIcon>launcher.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <Description>폴더와 사용자 지정 아이콘을 지원하는 작업표시줄 런처</Description>
+    <OutputPath>..\중간파일\bin\</OutputPath>
+  </PropertyGroup>
+</Project>
