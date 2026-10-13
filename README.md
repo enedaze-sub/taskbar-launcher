@@ -39,6 +39,29 @@ git clone https://github.com/enedaze-sub/taskbar-launcher.git
 
 자세한 내용은 [사용안내.txt](사용안내.txt)를 보세요.
 
+## Linux · macOS 버전
+
+기존 Windows 버전과 별도로 Qt/Python 기반 Linux·macOS 버전을 제공합니다. 폴더와 드래그 정렬, 메모, 디자인 6종·색상 10종·커스텀 테마, 전체/칸별 배경 미리보기, 선택형 휠 다이얼, 백업을 지원합니다.
+
+| 대상 | 설치 패키지 | 사용안내 |
+|---|---|---|
+| Ubuntu 일반 PC, x86_64 | [Linux 내려받기](https://github.com/enedaze-sub/taskbar-launcher/releases/download/ports-2026.10.13/DeckLauncher-Linux-x86_64.tar.gz) | [리눅스 안내](리눅스/README.md) |
+| macOS 14.4+, Apple Silicon/Intel | [macOS 내려받기](https://github.com/enedaze-sub/taskbar-launcher/releases/download/ports-2026.10.13/DeckLauncher-macOS.tar.gz) | [Mac 안내](macOS/README.md) |
+
+**[Linux/macOS 미리보기 배포](https://github.com/enedaze-sub/taskbar-launcher/releases/tag/ports-2026.10.13)**입니다. 자동 검사 Linux 84개·macOS 102개와 Qt 렌더링을 Windows에서 확인했으며, 실제 Ubuntu/Mac 설치와 Dock 동작은 실기 검증 전입니다. 기존 Windows 릴리스는 그대로 유지합니다.
+
+Linux는 패키지를 풀고 `bash install.sh --with-system-deps`를 실행합니다. Mac은 최초 빌드에 Python 3.10~3.15와 Apple Command Line Tools가 필요하며, `install.command`로 `~/Applications/DeckLauncher.app`을 만듭니다. 완성된 Mac 앱은 Python 없이 실행할 수 있습니다. Apple Developer ID 서명/공증은 포함하지 않습니다.
+
+Windows/Linux 백업의 폴더·메모·이미지를 가져올 수 있습니다. 다른 운영체제의 실행 대상은 해당 OS 앱으로 다시 연결해야 합니다. 정확한 Dock 아이콘 좌표 대신 커서와 작업 영역을 기준으로 배치합니다.
+
+### macOS UI 디자인 6종
+
+![macOS UI 디자인 6종](macOS/screenshots/designs.png)
+
+[색상 테마 10종 보기](macOS/screenshots/colors.png) · [Mac 설정창](macOS/screenshots/settings.png) · [Linux UI 디자인 6종](리눅스/screenshots/designs.png)
+
+위 이미지는 해당 버전의 소스를 Qt로 렌더링한 미리보기입니다. Mac/Linux 기본 앱 아이콘은 실제 설치된 앱과 OS를 따릅니다.
+
 ## 직접 빌드
 .NET 6 SDK가 있으면 Windows PowerShell에서:
 ```powershell

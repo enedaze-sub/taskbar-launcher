@@ -1,0 +1,9 @@
+*.py text eol=lf
+*.command text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+requirements.txt text eol=lf
+*.png binary
+*.ico binary
+*.icns binary
+*.ttf binary

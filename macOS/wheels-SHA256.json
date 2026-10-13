@@ -1,0 +1,66 @@
+[
+  {
+    "Package": "PySide6-Essentials",
+    "Version": "6.12.0",
+    "File": "pyside6_essentials-6.12.0-cp310-abi3-macosx_14_0_universal2.whl",
+    "SHA256": "0867b709a724db28b161227c7d6ecb5ed10cc09226a53542417ac6dee1308239",
+    "URL": "https://files.pythonhosted.org/packages/e1/90/d528f8dd3f9f20712bc719e10c698d27c998e1dd76ed3f33b6fb606d0972/pyside6_essentials-6.12.0-cp310-abi3-macosx_14_0_universal2.whl",
+    "RequiresPython": "<3.16,>=3.10"
+  },
+  {
+    "Package": "shiboken6",
+    "Version": "6.12.0",
+    "File": "shiboken6-6.12.0-cp310-abi3-macosx_14_0_universal2.whl",
+    "SHA256": "47105e05baf57d35453e07d240bbe59cb4b8d9565377ea5134ff9fb37d4f5c02",
+    "URL": "https://files.pythonhosted.org/packages/b5/45/11536fba5f50a57671eb14441c6098096f3e57074e54c9d7d66039a5831e/shiboken6-6.12.0-cp310-abi3-macosx_14_0_universal2.whl",
+    "RequiresPython": "<3.16,>=3.10"
+  },
+  {
+    "Package": "PyInstaller",
+    "Version": "6.22.3",
+    "File": "pyinstaller-6.22.3-py3-none-macosx_10_13_universal2.whl",
+    "SHA256": "052f4a1cd4f81092ccb7a18fe8ebc9ecf832a5917317e39fb3775af4e959b253",
+    "URL": "https://files.pythonhosted.org/packages/ec/af/898f70947e27f8e65d55183c780e77112e023c0b4a6fba6255d4d563a27d/pyinstaller-6.22.3-py3-none-macosx_10_13_universal2.whl",
+    "RequiresPython": "<3.16,>=3.8"
+  },
+  {
+    "Package": "altgraph",
+    "Version": "0.17.5",
+    "File": "altgraph-0.17.5-py2.py3-none-any.whl",
+    "SHA256": "f3a22400bce1b0c701683820ac4f3b159cd301acab067c51c653e06961600597",
+    "URL": "https://files.pythonhosted.org/packages/a9/ba/000a1996d4308bc65120167c21241a3b205464a2e0b58deda26ae8ac21d1/altgraph-0.17.5-py2.py3-none-any.whl",
+    "RequiresPython": null
+  },
+  {
+    "Package": "macholib",
+    "Version": "1.16.4",
+    "File": "macholib-1.16.4-py2.py3-none-any.whl",
+    "SHA256": "da1a3fa8266e30f0ce7e97c6a54eefaae8edd1e5f86f3eb8b95457cae90265ea",
+    "URL": "https://files.pythonhosted.org/packages/c7/d1/a9f36f8ecdf0fb7c9b1e78c8d7af12b8c8754e74851ac7b94a8305540fc7/macholib-1.16.4-py2.py3-none-any.whl",
+    "RequiresPython": null
+  },
+  {
+    "Package": "packaging",
+    "Version": "26.3",
+    "File": "packaging-26.3-py3-none-any.whl",
+    "SHA256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c",
+    "URL": "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl",
+    "RequiresPython": ">=3.9"
+  },
+  {
+    "Package": "pyinstaller-hooks-contrib",
+    "Version": "2026.8",
+    "File": "pyinstaller_hooks_contrib-2026.8-py3-none-any.whl",
+    "SHA256": "6d21d65323ea4467753afc21f52d7d0e69416ae8101dd88269bf273ad48db084",
+    "URL": "https://files.pythonhosted.org/packages/8f/f1/3eee0263b487e571aed9204257b45bc2a0b6fec34d0a1adade4d8d8a968c/pyinstaller_hooks_contrib-2026.8-py3-none-any.whl",
+    "RequiresPython": ">=3.8"
+  },
+  {
+    "Package": "setuptools",
+    "Version": "84.0.0",
+    "File": "setuptools-84.0.0-py3-none-any.whl",
+    "SHA256": "51a52592b3b99e102b609654876bd65f19f999935166d1352678931132b0c670",
+    "URL": "https://files.pythonhosted.org/packages/95/9c/c510029fc6ef33a6275cd2c5d3cecd6613dfd6aa401d57c54f1c18852ccf/setuptools-84.0.0-py3-none-any.whl",
+    "RequiresPython": ">=3.10"
+  }
+]

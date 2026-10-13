@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+wheels/
+preview/
+*.tar.gz
