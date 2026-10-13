@@ -1,0 +1,27 @@
+[
+  {
+    "folder": "게임",
+    "mode": "built-in image_gen",
+    "prompt": "Use case: stylized-concept. Asset type: individual Windows launcher folder icon for the Korean folder '게임'. Subject: a friendly chunky game controller, pale mint body, lilac directional pad, two coral buttons and a small yellow star beside it. Style: polished cute soft clay 3D app icon, coherent mint/lilac/coral pastel set, clean silhouette, subtle soft shading, readable at 40 pixels. Composition: square 1024x1024, one centered icon occupies about 75 percent of the canvas, generous transparent margin. Background: genuinely transparent alpha, no ground plane or colored tile. Constraints: no text, letters, numbers, logos, watermark, icon grid, extra scene or multiple variants. Deliver just one single icon."
+  },
+  {
+    "folder": "Ai",
+    "mode": "built-in image_gen",
+    "prompt": "Use case: stylized-concept. Asset type: individual Windows launcher folder icon for the Korean folder 'Ai'. Subject: a lavender rounded AI microchip with a small friendly face and a tiny mint sparkle, a few simple visible chip pins. Style: polished cute soft clay 3D app icon, coherent mint/lilac/coral pastel set, clean silhouette, subtle soft shading, readable at 40 pixels. Composition: square 1024x1024, one centered icon occupies about 75 percent of the canvas, generous transparent margin. Background: genuinely transparent alpha, no ground plane or colored tile. Constraints: no text, letters, numbers, logos, watermark, icon grid, extra scene or multiple variants. Deliver just one single icon."
+  },
+  {
+    "folder": "메신저",
+    "mode": "built-in image_gen",
+    "prompt": "Use case: stylized-concept. Asset type: individual Windows launcher folder icon for the Korean folder '메신저'. Subject: two overlapping chunky rounded chat bubbles, one pale mint with three coral dots and one lilac, subtly soft 3D. Style: polished cute soft clay 3D app icon, coherent mint/lilac/coral pastel set, clean silhouette, subtle soft shading, readable at 40 pixels. Composition: square 1024x1024, one centered icon occupies about 75 percent of the canvas, generous transparent margin. Background: genuinely transparent alpha, no ground plane or colored tile. Constraints: no text, letters, numbers, logos, watermark, icon grid, extra scene or multiple variants. Deliver just one single icon."
+  },
+  {
+    "folder": "유틸",
+    "mode": "built-in image_gen",
+    "prompt": "Use case: stylized-concept. Asset type: individual Windows launcher folder icon for the Korean folder '유틸'. Subject: a pale mint rounded gear with a short lavender wrench laid diagonally across it, one small yellow accent. Style: polished cute soft clay 3D app icon, coherent mint/lilac/coral pastel set, clean silhouette, subtle soft shading, readable at 40 pixels. Composition: square 1024x1024, one centered icon occupies about 75 percent of the canvas, generous transparent margin. Background: genuinely transparent alpha, no ground plane or colored tile. Constraints: no text, letters, numbers, logos, watermark, icon grid, extra scene or multiple variants. Deliver just one single icon."
+  },
+  {
+    "folder": "디코봇",
+    "mode": "built-in image_gen",
+    "prompt": "Use case: stylized-concept. Asset type: individual Windows launcher folder icon for the Korean folder '디코봇'. Subject: a friendly lavender chatbot robot head with rounded mint ear pieces, two simple bright eyes and a tiny coral microphone, conveying a voice-chat automation bot. Style: polished cute soft clay 3D app icon, coherent mint/lilac/coral pastel set, clean silhouette, subtle soft shading, readable at 40 pixels. Composition: square 1024x1024, one centered icon occupies about 75 percent of the canvas, generous transparent margin. Background: genuinely transparent alpha, no ground plane or colored tile. Constraints: no text, letters, numbers, logos, watermark, icon grid, extra scene or multiple variants. Deliver just one single icon."
+  }
+]

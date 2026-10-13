@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -75,7 +75,7 @@ public sealed class BackgroundWindow : Window
         var header = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
         var commands = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center }; DockPanel.SetDock(commands, Dock.Right);
         commands.Children.Add(UI.Button("이미지 선택…", Choose)); commands.Children.Add(UI.Button("기본 배경", ResetImage)); header.Children.Add(commands);
-        var labels = new StackPanel(); var title = UI.Text(entry == null ? "런처 배경 꾸미기" : "이 칸의 배경 꾸미기", 26); title.FontFamily = UI.DisplayFont; labels.Children.Add(title); labels.Children.Add(UI.Text("이미지를 드래그해 위치를 맞추고, 휠로 확대해 보세요.", 12, UI.Muted)); header.Children.Add(labels); main.Children.Add(header);
+        var labels = new StackPanel(); var title = UI.Heading(entry == null ? "런처 배경 꾸미기" : "이 칸의 배경 꾸미기", 25); labels.Children.Add(title); var dragHint = UI.Text("미리보기의 이미지를 끌어 위치를 맞추고, 휠로 확대해 보세요.", 13.5, UI.Muted); dragHint.Margin = new Thickness(0, 5, 0, 0); labels.Children.Add(dragHint); header.Children.Add(labels); main.Children.Add(header);
         var copy = System.Text.Json.JsonSerializer.Deserialize<Library>(System.Text.Json.JsonSerializer.Serialize(library))!;
         if (entry == null) copy.Background = draft; else copy.Find(entry.Id)!.Background = draft;
         preview = new LauncherWindow(store, copy, true);
@@ -90,7 +90,7 @@ public sealed class BackgroundWindow : Window
         var footer = new DockPanel { Margin = new Thickness(0, 17, 0, 0) }; Grid.SetRow(footer, 3);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal }; DockPanel.SetDock(buttons, Dock.Right);
         buttons.Children.Add(UI.Button("위치 초기화", ResetPosition)); var cancel = UI.Button("취소", () => DialogResult = false); cancel.IsCancel = true; buttons.Children.Add(cancel);
-        var save = UI.Button("적용", Save); save.Background = UI.Brush("#285D67"); save.IsDefault = true; buttons.Children.Add(save); footer.Children.Add(buttons); status.VerticalAlignment = VerticalAlignment.Center; footer.Children.Add(status); main.Children.Add(footer);
+        var save = UI.Button("적용", Save); save.MinWidth = 84; save.FontWeight = FontWeights.SemiBold; UI.Res(save, Control.BackgroundProperty, "SkinAccent"); UI.Res(save, Control.ForegroundProperty, "SkinAccentText"); save.IsDefault = true; buttons.Children.Add(save); footer.Children.Add(buttons); status.VerticalAlignment = VerticalAlignment.Center; footer.Children.Add(status); main.Children.Add(footer);
         previewArea.MouseLeftButtonDown += (_, e) => { if (image == null) return; dragStart = e.GetPosition(previewArea); initialX = draft.OffsetX; initialY = draft.OffsetY; previewArea.CaptureMouse(); e.Handled = true; };
         previewArea.MouseMove += (_, e) =>
         {

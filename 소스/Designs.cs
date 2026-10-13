@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
@@ -26,7 +26,7 @@ public sealed partial class LauncherWindow
         return Sector(.01,390,-180,0);
     }
     private Geometry HubGeometry() => AlternateLayout ? new RectangleGeometry(new Rect(Theme.Design=="paper"?140:Theme.Design=="modern"?52:145,400,Theme.Design=="paper"?640:Theme.Design=="modern"?816:630,54),14,14) : Sector(.01,205,-180,0);
-    private (double X,double Y,double Width) InfoBox => Theme.Design switch {"modern"=>(80,207,760),"cat"=>(210,184,500),"paper"=>(190,107,540),_=>(305,278,310)};
+    private (double X,double Y,double Width) InfoBox => Theme.Design switch {"modern"=>(80,207,760),"cat"=>(210,194,500),"paper"=>(190,113,540),_=>(305,278,310)};
     private Geometry LayoutSlot(int index,int count)
     {
         if(Theme.Design=="neon")
@@ -42,8 +42,8 @@ public sealed partial class LauncherWindow
         int columns=Theme.Design=="paper"?Math.Min(4,Math.Max(1,count)):Math.Min(3,Math.Max(1,count));
         int rows=Math.Max(1,(count+columns-1)/columns);
         double w=Theme.Design=="paper"?Math.Min(144,(610.0-(columns-1)*10)/columns):178;
-        double h=Theme.Design=="paper"?(rows>2?67:96):(rows>2?42:60);
-        double y=Theme.Design=="paper"?(rows>2?178:188):272;
+        double h=Theme.Design=="paper"?(rows>2?66:96):(rows>2?42:60);
+        double y=Theme.Design=="paper"?(rows>2?184:189):272;
         double x=460-(columns*w+(columns-1)*10)/2;
         return new RectangleGeometry(new Rect(x+(index%columns)*(w+10),y+(index/columns)*(h+9),w,h),Theme.Design=="paper"?12:22,Theme.Design=="paper"?12:22);
     }
@@ -80,25 +80,27 @@ public sealed partial class LauncherWindow
             decor.Children.Add(new System.Windows.Shapes.Polygon {Points=new PointCollection{new(165,225),new(208,121),new(280,194)},Fill=AccentTone(.3)});
             decor.Children.Add(new System.Windows.Shapes.Polygon {Points=new PointCollection{new(640,194),new(712,121),new(755,225)},Fill=AccentTone(.3)});
             for(int side=-1;side<=1;side+=2)for(int y=241;y<=260;y+=10)decor.Children.Add(new Line {X1=460+side*288,X2=460+side*315,Y1=y,Y2=y-3,Stroke=AccentTone(.6),StrokeThickness=1.5});
-            Paw(decor,151,411,.6);Paw(decor,768,411,.6);
+            Paw(decor,156,372,.6);Paw(decor,764,372,.6);
         }
         if(Theme.Design=="neon")
         {
             decor.Children.Add(new WpfPath {Data=Sector(300,301,-165,-15),Stroke=T(Theme.Accent),StrokeThickness=.7,Opacity=.2});
             for(int angle=-160;angle<=-20;angle+=20){var p=Polar(Theme.Radius,angle);decor.Children.Add(new Line{X1=460,Y1=409,X2=p.X,Y2=p.Y,Stroke=T(Theme.Accent),StrokeThickness=.8,Opacity=.14});}
-            var label=UI.Text("O R B I T   /   L A U N C H",12,T(Theme.Accent));Place(decor,label,344,99);
+            var label=UI.Text("O R B I T   /   L A U N C H",12,T(Theme.Accent));label.Width=400;label.TextAlignment=TextAlignment.Center;Place(decor,label,260,84);
         }
         if(Theme.Design=="paper")
         {
-            for(int x=161;x<=760;x+=20)Place(decor,new Ellipse{Width=7,Height=7,Fill=Theme.Blend(Theme.Text,Theme.Background,.7)},x,101);
-            decor.Children.Add(new Line {X1=150,X2=770,Y1=171,Y2=171,Stroke=AccentTone(.2),StrokeThickness=1});
+            // Binder holes mirrored around the center line (x = 460).
+            for(int i=-15;i<=15;i++)Place(decor,new Ellipse{Width=7,Height=7,Fill=Theme.Blend(Theme.Text,Theme.Background,.7)},460+i*20-3.5,101);
+            decor.Children.Add(new Line {X1=150,X2=770,Y1=179.5,Y2=179.5,Stroke=AccentTone(.2),StrokeThickness=1});
         }
         fan.Children.Add(decor);
     }
     private void Paw(Canvas canvas,double x,double y,double opacity)
     {
         Place(canvas,new Ellipse {Width=13,Height=10,Fill=T(Theme.Accent),Opacity=opacity},x-6.5,y);
-        foreach(var p in new[]{(-8.0,-3.0),(-3.5,-7.0),(2.0,-7.0),(6.5,-3.0)})Place(canvas,new Ellipse{Width=4,Height=5,Fill=T(Theme.Accent),Opacity=opacity},x+p.Item1,y+p.Item2);
+        // Toe centers at ±2.25 and ±6.75 so each paw is mirror-symmetric around x.
+        foreach(var p in new[]{(-8.75,-3.0),(-4.25,-7.0),(0.25,-7.0),(4.75,-3.0)})Place(canvas,new Ellipse{Width=4,Height=5,Fill=T(Theme.Accent),Opacity=opacity},x+p.Item1,y+p.Item2);
     }
     private void DrawHubDecorations() { }
     private void DrawSlotDecorations(Canvas canvas,Point point) { }

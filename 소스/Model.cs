@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.IO.Compression;
 using System.Text.Json;
 
@@ -25,6 +25,7 @@ public sealed class Library
     public bool HideAfterLaunch { get; set; }
     public bool WheelDialEnabled { get; set; }
     public List<SavedTheme> CustomThemes { get; set; } = new();
+    public FontSettings Fonts { get; set; } = new();
     public BackgroundSettings Background { get; set; } = new();
     public ThemeSettings Theme { get; set; } = new();
     public List<Entry> Entries { get; set; } = new();
@@ -96,7 +97,7 @@ public sealed class Library
     }
     public void Validate()
     {
-        Background ??= new(); Background.Validate(); Theme ??= new(); Theme.Validate(); CustomThemes ??= new();
+        Background ??= new(); Background.Validate(); Theme ??= new(); Theme.Validate(); CustomThemes ??= new(); Fonts ??= new(); Fonts.Validate();
         var themeIds = new HashSet<string>();
         foreach (var saved in CustomThemes)
         {

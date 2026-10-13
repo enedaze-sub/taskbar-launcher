@@ -18,7 +18,7 @@ public static class Program
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         var store = new Store(Path.Combine(AppContext.BaseDirectory, "Data"));
         Library library;
-        try { library = store.Load(); if (library.ApplyUiUpdate()) store.Save(library); }
+        try { library = store.Load(); if (library.ApplyUiUpdate()) store.Save(library); UI.ApplyFonts(library.Fonts); }
         catch (Exception ex)
         {
             MessageBox.Show("등록 정보를 읽지 못했습니다. 원본 파일은 유지됩니다.\n\n" + ex.Message + "\n\nData 폴더의 library.json과 library.json.bak를 확인해 주세요.", "Deck Launcher", MessageBoxButton.OK, MessageBoxImage.Error);

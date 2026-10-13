@@ -41,7 +41,8 @@ $response = Join-Path $middleDir 'compiler.rsp'
 $rsp | Set-Content -LiteralPath $response -Encoding utf8
 & dotnet (Join-Path $sdk.FullName 'Roslyn\bincore\csc.dll') /noconfig "@$response"
 if ($LASTEXITCODE -ne 0) { throw '빌드 실패' }
-Add-Type -Path (Join-Path $sdk.FullName 'Microsoft.NET.HostModel.dll')
+# Windows PowerShell 5.1 reports a partial type-load error here, but HostWriter itself loads fine.
+try { Add-Type -Path (Join-Path $sdk.FullName 'Microsoft.NET.HostModel.dll') -ErrorAction Stop } catch { }
 [Microsoft.NET.HostModel.AppHost.HostWriter]::CreateAppHost((Join-Path $appHostPack.FullName 'runtimes\win-x64\native\apphost.exe'),(Join-Path $outDir 'DeckLauncher.exe'),'DeckLauncher.dll',$true,(Join-Path $outDir 'DeckLauncher.dll'),$false)
 @'
 {"runtimeOptions":{"tfm":"net6.0","frameworks":[{"name":"Microsoft.NETCore.App","version":"6.0.36"},{"name":"Microsoft.WindowsDesktop.App","version":"6.0.36"}]}}

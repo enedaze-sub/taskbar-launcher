@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -35,18 +35,18 @@ public sealed partial class LauncherWindow
         if(folderPreviews.Count>depth && folderPreviews[depth].Tag as string==folder.Id){CloseFolderPreview(depth+1);return;}
         CloseFolderPreview(depth);
         var entries=library.Children(folder.Id).ToList();
-        var popup=new Window { Title=folder.Name+" · 빠른 펼치기",Tag=folder.Id,Owner=this,ShowInTaskbar=false,ShowActivated=false,Topmost=false,WindowStyle=WindowStyle.None,ResizeMode=ResizeMode.NoResize,AllowsTransparency=true,Background=Brushes.Transparent,Width=284,Height=Math.Min(390,100+Math.Max(1,entries.Count)*59),FontFamily=UI.RoundedFont,FontSize=13 };
-        UI.Theme(popup,Theme);popup.Background=Brushes.Transparent;
+        var popup=new Window { Title=folder.Name+" · 빠른 펼치기",Tag=folder.Id,Owner=this,ShowInTaskbar=false,ShowActivated=false,Topmost=false,WindowStyle=WindowStyle.None,ResizeMode=ResizeMode.NoResize,AllowsTransparency=true,Background=Brushes.Transparent,Width=284,Height=Math.Min(390,100+Math.Max(1,entries.Count)*59),FontSize=13 };
+        UI.Theme(popup,Theme);popup.Background=Brushes.Transparent;popup.FontFamily=LFont;
         var panel=new Grid {Margin=new Thickness(5)};panel.RowDefinitions.Add(new(){Height=GridLength.Auto});panel.RowDefinitions.Add(new());
         popup.Content=new Border {Background=T(Theme.Background),BorderBrush=AccentTone(.6),BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(18),Padding=new Thickness(14),Child=panel};
-        var header=new StackPanel {Margin=new Thickness(3,1,3,12)};var name=UI.Text(folder.Name,19,T(Theme.Text));name.FontFamily=UI.DisplayFont;header.Children.Add(name);header.Children.Add(UI.Text(entries.Count+"개 항목 · 바로 선택하세요",11,MutedTone));panel.Children.Add(header);
+        var header=new StackPanel {Margin=new Thickness(3,1,3,12)};var name=UI.Text(folder.Name,19,T(Theme.Text));name.FontFamily=LFont;header.Children.Add(name);header.Children.Add(UI.Text(entries.Count+"개 항목 · 바로 선택하세요",11,MutedTone));panel.Children.Add(header);
         var rows=new StackPanel();var scroll=new ScrollViewer {Content=rows,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled};Grid.SetRow(scroll,1);panel.Children.Add(scroll);
         if(entries.Count==0)rows.Children.Add(UI.Text("아직 등록된 항목이 없어요",13,MutedTone));
         foreach(var entry in entries)
         {
             var row=new Button {Padding=new Thickness(8),Margin=new Thickness(0,0,0,5),Background=T(Theme.Surface),Foreground=T(Theme.Text),HorizontalContentAlignment=HorizontalAlignment.Stretch,Height=53,Tag=entry.Id,ToolTip=string.IsNullOrWhiteSpace(entry.Note)?null:entry.Note};
             var layout=new Grid();layout.ColumnDefinitions.Add(new(){Width=new GridLength(38)});layout.ColumnDefinitions.Add(new());layout.ColumnDefinitions.Add(new(){Width=new GridLength(15)});
-            layout.Children.Add(new Image {Source=IconFor(entry),Width=30,Height=30,Stretch=Stretch.Uniform});var caption=new TextBlock {Text=entry.Name,FontFamily=UI.DisplayFont,FontSize=14,VerticalAlignment=VerticalAlignment.Center,TextTrimming=TextTrimming.CharacterEllipsis,Margin=new Thickness(8,0,4,0)};Grid.SetColumn(caption,1);layout.Children.Add(caption);
+            layout.Children.Add(new Image {Source=IconFor(entry),Width=30,Height=30,Stretch=Stretch.Uniform});var caption=new TextBlock {Text=entry.Name,FontFamily=LFont,FontSize=14,VerticalAlignment=VerticalAlignment.Center,TextTrimming=TextTrimming.CharacterEllipsis,Margin=new Thickness(8,0,4,0)};Grid.SetColumn(caption,1);layout.Children.Add(caption);
             if(entry.IsFolder){var arrow=UI.Text("›",20,T(Theme.Accent));Grid.SetColumn(arrow,2);layout.Children.Add(arrow);}
             row.Content=layout;row.Click+=(_,_)=>{CloseFolderPreview();Open(entry);};
             row.MouseEnter+=(_,_)=>{hoverClose?.Stop();ShowNote(entry);if(entry.IsFolder)ScheduleFolderPreview(entry,row,depth+1);else CloseFolderPreview(depth+1);};

@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -262,15 +262,40 @@ internal static class SelfTests
                 var last=lib.Children(c.Id).Last();RaiseDrop(radial.Slot(firstId)!,last.Id,new Point(rect.Right-4,rect.Y+rect.Height/2));Check(lib.Children(c.Id).ToList().IndexOf(last)==1,"Reordering works in alternate layout: "+layout.Name);
             }
             var helpWindow=new RegistrationHelpWindow(lib.Theme,null){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};helpWindow.Show();helpWindow.UpdateLayout();
-            Check(Find<Image>(helpWindow).Count(i=>i.Source!=null)>=2 && Find<TextBlock>(helpWindow).Any(t=>t.Text.Contains("한 번 더 우클릭")) && Find<TextBlock>(helpWindow).Any(t=>t.Text.Contains("자동 분리")),"Registration help shows both reference images and the extra right-click and argument steps");helpWindow.Close();
+            Check(Find<Image>(helpWindow).Count(i=>i.Source!=null)>=2 && Find<TextBlock>(helpWindow).Any(t=>t.Text.Contains("한 번 더 우클릭")) && Find<TextBlock>(helpWindow).Any(t=>t.Text.Contains("자동 분리")),"Registration help shows both reference images and the extra right-click and argument steps");
+            var guideTexts=Find<TextBlock>(helpWindow).Select(t=>t.Text).ToList();int dragIndex=guideTexts.FindIndex(t=>t.Contains("끌어다 놓기")),copyIndex=guideTexts.FindIndex(t=>t.Contains("‘대상’ 복사"));
+            Check(dragIndex>=0 && copyIndex>dragIndex && !Find<TextBox>(helpWindow).Any(),"Help explains dragging the executable first and hides the form when opened as a guide");helpWindow.Close();
+            Check(TargetCommand.SuggestName("C:\\Users\\me\\AppData\\Local\\Discord\\Update.exe","--processStart Discord.exe")=="Discord" && TargetCommand.SuggestName("C:\\Games\\Game.exe","")=="Game","Direct registration suggests a friendly name from the pasted target");
+            win.Show();win.Navigate(null);int beforeDirect=lib.Entries.Count;
+            var direct=new RegistrationHelpWindow(lib.Theme,entry=>{lib.Entries.Add(entry);store.Save(lib);},paths=>{win.RegisterPaths(paths);return 1;},"라이브러리"){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};direct.Show();direct.UpdateLayout();
+            var directTarget=Find<TextBox>(direct).First(t=>t.Tag as string=="Target");var directPaste=new DataObjectPastingEventArgs(new DataObject(DataFormats.UnicodeText,"\""+cmdPath+"\" /d /c exit 0"),false,DataFormats.UnicodeText){RoutedEvent=DataObject.PastingEvent};directTarget.RaiseEvent(directPaste);
+            Check(Find<TextBox>(direct).First(t=>t.Tag as string=="Arguments").Text=="/d /c exit 0" && Find<TextBox>(direct).First(t=>t.Tag as string=="Name").Text=="cmd","Direct registration splits pasted targets and fills the name");
+            direct.Register();Check(lib.Entries.Count==beforeDirect+1 && lib.Entries.Last().Target==cmdPath && lib.Entries.Last().Arguments=="/d /c exit 0" && store.Load().Entries.Any(e=>e.Target==cmdPath && e.Arguments=="/d /c exit 0"),"Direct registration saves the pasted shortcut in one step");
+            direct.RegisterFiles(new[]{item.Target});Check(direct.RegisteredCount==2,"Dropping files on the direct registration window registers them");direct.Close();win.Hide();
+            var optionsTexts=new List<string>();{var sheet=win.OptionsSheet();sheet.ShowActivated=false;sheet.WindowStartupLocation=WindowStartupLocation.Manual;sheet.Left=sheet.Top=-20000;sheet.Show();sheet.UpdateLayout();optionsTexts=Find<TextBlock>(sheet).Select(t=>t.Text).ToList();sheet.Close();}
+            Check(!optionsTexts.Any(t=>t.Contains("등록 도움말") || t.Contains("주소로 직접 등록")) && optionsTexts.Contains("라이브러리 백업") && optionsTexts.Contains("런처 종료"),"Options sheet no longer duplicates registration help");
             var actionSheet=new ActionSheet("꾸미기","미리보기",lib.Theme){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};actionSheet.Add("◈","색상과 디자인","직접 골라 꾸미기",()=>{});actionSheet.Show();actionSheet.UpdateLayout();
             Check(actionSheet.WindowStyle==WindowStyle.None && actionSheet.AllowsTransparency && Find<Button>(actionSheet).Any(b=>b.Content is Grid),"Choice sheets use rounded themed action cards instead of basic context lists");actionSheet.Close();
             radial.Show();radial.HandleScreenClick(radial.PointToScreen(new Point(1200,700)));Check(!radial.IsVisible,"A screen click outside the launcher dismisses it even when initially inactive");radial.Show();
             var owned=new Window {Owner=radial,Title="설정 예외",Width=100,Height=100,Left=-20000,Top=-20000};owned.Show();radial.HandleScreenClick(owned.PointToScreen(new Point(20,20)));Check(radial.IsVisible,"Clicks inside an owned settings window do not dismiss the launcher");owned.Close();
             radial.Show();radial.library.HideAfterLaunch=false;radial.Open(new Entry {Target=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","cmd.exe"),Arguments="/d /c exit 0"});Check(!radial.IsVisible,"Successful launch always dismisses the launcher even with an old disabled preference");
-            bool displayFont = UI.DisplayFont.GetTypefaces().Any(x => x.TryGetGlyphTypeface(out var g) && g.FamilyNames.Values.Any(n => n == "Cafe24 Ssurround" || n == "Jua"));
-            bool bodyFont = UI.RoundedFont.GetTypefaces().Any(x => x.TryGetGlyphTypeface(out var g) && g.FamilyNames.Values.Any(n => n == "Cafe24 Ssurround air" || n == "Gowun Dodum"));
-            Check(displayFont && bodyFont, "Rounded Cafe24 fonts or bundled fallback fonts resolve to real typefaces");
+            UI.ApplyFonts(new FontSettings());
+            bool displayFont = UI.LauncherFont.GetTypefaces().Any(x => x.TryGetGlyphTypeface(out var g) && g.FamilyNames.Values.Any(n => n == "Cafe24 Ssurround" || n == "Jua"));
+            bool bodyFont = UI.InterfaceFont.GetTypefaces().Any(x => x.TryGetGlyphTypeface(out var g) && g.CharacterToGlyphMap.ContainsKey(0xAC00));
+            Check(displayFont && bodyFont, "Default launcher font (Cafe24 / bundled Jua) and readable Korean settings font resolve to real typefaces");
+            // Font choices: catalog, persistence, resolution and the live picker.
+            var catalog=FontCatalog.All;Check(catalog.Count>0 && catalog.Any(c=>c.Key=="Jua") && catalog.All(c=>c.Family.GetTypefaces().Any()),"Font catalog lists bundled and installed Korean fonts");
+            var gowun=FontCatalog.Resolve("Gowun Dodum",FontCatalog.DefaultInterface);Check(gowun.GetTypefaces().Any(t=>t.TryGetGlyphTypeface(out var g) && g.FamilyNames.Values.Contains("Gowun Dodum")),"A chosen bundled font resolves by name");
+            Check(FontCatalog.Resolve("존재하지 않는 글꼴 61892",FontCatalog.DefaultInterface).Source==FontCatalog.DefaultInterface.Source,"Unknown fonts fall back to the default");
+            lib.Fonts=new FontSettings{Launcher="Gowun Dodum",Interface="Malgun Gothic"};store.Save(lib);Check(store.Load().Fonts.Launcher=="Gowun Dodum" && store.Load().Fonts.Interface=="Malgun Gothic","Font choices persist with the library");
+            var fontBackup=Path.Combine(store.DirectoryPath,"font-backup.zip");store.Backup(fontBackup,lib);Check(Store.ReadBackup(fontBackup).Library.Fonts.Launcher=="Gowun Dodum","Font choices are included in backups");
+            Check(Store.Read(legacyFile).Fonts.Launcher=="" ,"Older libraries without font settings still load");
+            var fontEditor=new FontWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};fontEditor.Show();fontEditor.UpdateLayout();
+            fontEditor.SelectTarget(true);fontEditor.Choose("Jua");fontEditor.SelectTarget(false);fontEditor.Choose("");
+            Check(fontEditor.Draft.Launcher=="Jua" && fontEditor.Draft.Interface=="" && lib.Fonts.Launcher=="Gowun Dodum","Font picker edits launcher and settings fonts separately and in isolation");fontEditor.Close();
+            UI.ApplyFonts(lib.Fonts);radial.Navigate(null);radial.UpdateLayout();
+            Check(Find<TextBlock>(radial).Any(t=>t.FontFamily.Source.EndsWith("#Gowun Dodum")) ,"Launcher text uses the chosen launcher font");
+            lib.Fonts=new FontSettings();UI.ApplyFonts(lib.Fonts);store.Save(lib);
             radial.Hide(); app.Shutdown();
             log.Add("ALL CHECKS PASSED"); File.WriteAllLines(Path.Combine(output, "검증결과.txt"), log); return 0;
         }
@@ -313,11 +338,11 @@ internal static class Preview
         var bitmap = new RenderTargetBitmap(1200, 650, 96, 96, PixelFormats.Pbgra32); bitmap.Render(visual);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap)); using var stream = File.Create(path); encoder.Save(stream);
     }
-    internal static void Snapshot(Window window, string path)
+    internal static void Snapshot(Window window, string path, double scale = 1)
     {
         window.UpdateLayout(); var content = (FrameworkElement)window.Content;
         double width=content.ActualWidth+content.Margin.Left+content.Margin.Right,height=content.ActualHeight+content.Margin.Top+content.Margin.Bottom;
-        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width),(int)Math.Ceiling(height),96,96,PixelFormats.Pbgra32);
+        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width*scale),(int)Math.Ceiling(height*scale),96*scale,96*scale,PixelFormats.Pbgra32);
         var backdrop = new DrawingVisual(); using (var dc = backdrop.RenderOpen()) dc.DrawRectangle(window.Background,null,new Rect(0,0,width,height));bitmap.Render(backdrop);
         var visual = new DrawingVisual(); using (var dc = visual.RenderOpen()) dc.DrawRectangle(new VisualBrush(content) { Stretch=Stretch.Fill,ViewboxUnits=BrushMappingMode.Absolute,Viewbox=new Rect(content.Margin.Left,content.Margin.Top,content.ActualWidth,content.ActualHeight),AlignmentX=AlignmentX.Left,AlignmentY=AlignmentY.Top },null,new Rect(content.Margin.Left,content.Margin.Top,content.ActualWidth,content.ActualHeight));
         bitmap.Render(visual); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
@@ -367,9 +392,14 @@ internal static class Preview
         var slotEditor=new BackgroundWindow(store,lib,hoverEntry){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};slotEditor.Show();Snapshot(slotEditor,Path.Combine(output,"미리보기-칸배경설정.png"));slotEditor.Close();
         lib.WheelDialEnabled=true;win.RotateDial(1);Snapshot(win,Path.Combine(output,"미리보기-휠순환.png"));
         var paletteManager=new LibraryWindow(store,new Library {Entries=lib.Entries,Theme=ThemeSettings.Presets.First(t=>t.Name=="피치 크림").Copy()}){ShowActivated=false,Left=-20000,Top=-20000};paletteManager.Show();Snapshot(paletteManager,Path.Combine(output,"미리보기-설정색상.png"));paletteManager.Close();
-        var help=new RegistrationHelpWindow(lib.Theme,null){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};help.Show();Snapshot(help,Path.Combine(output,"미리보기-등록도움말.png"));help.Close();
+        var help=new RegistrationHelpWindow(lib.Theme,null){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000,Height=1450};help.Show();Snapshot(help,Path.Combine(output,"미리보기-등록도움말.png"));help.Close();
         var appearance=new ActionSheet("화면 꾸미기","색상과 모양을 내 취향으로",lib.Theme){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};appearance.Add("◈","색상 · UI 디자인","새 레이아웃과 내 커스텀 테마",()=>{});appearance.Add("▧","전체 배경 이미지","미리보기에서 위치와 확대를 맞추세요",()=>{});appearance.Note("칸별 배경은 카드 우클릭으로 바꿀 수 있어요.");appearance.Show();Snapshot(appearance,Path.Combine(output,"미리보기-꾸미기메뉴.png"));appearance.Close();
-        var optionSource=new LibraryWindow(store,lib);var options=optionSource.OptionsSheet();options.ShowActivated=false;options.WindowStartupLocation=WindowStartupLocation.Manual;options.Left=options.Top=-20000;options.Show();Snapshot(options,Path.Combine(output,"미리보기-옵션메뉴.png"));options.Close();
+        var optionSource=new LibraryWindow(store,lib);var options=optionSource.OptionsSheet();options.ShowActivated=false;options.WindowStartupLocation=WindowStartupLocation.Manual;options.Left=options.Top=-20000;options.Show();Snapshot(options,Path.Combine(output,"미리보기-옵션메뉴.png"));Snapshot(options,Path.Combine(output,"확대-옵션메뉴.png"),2);options.Close();
+        var direct=new RegistrationHelpWindow(lib.Theme,_=>{},_=>0,"라이브러리"){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000,Width=1140,Height=1500};direct.Show();Snapshot(direct,Path.Combine(output,"미리보기-직접등록.png"));direct.Close();
+        var fonts=new FontWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000,Width=1140,Height=800};fonts.Show();Snapshot(fonts,Path.Combine(output,"미리보기-글꼴.png"));fonts.Close();
+        var decorate=new ActionSheet("화면 꾸미기","색상과 모양, 글꼴을 내 취향으로",lib.Theme){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};decorate.Add("\uE790","색상 · UI 디자인","기본 색상, 새 레이아웃, 내 커스텀 테마",()=>{});decorate.Add("\uEB9F","전체 배경 이미지","실제 화면을 보며 이미지 위치와 확대 조절",()=>{});decorate.Add("\uE8D2","글꼴","런처와 설정 창의 글꼴을 각각 고르기",()=>{});decorate.Note("칸별 배경은 카드 우클릭 → ‘이 칸의 배경 이미지’에서 바꿀 수 있어요.");decorate.Show();Snapshot(decorate,Path.Combine(output,"미리보기-꾸미기메뉴2.png"));decorate.Close();
+        var shortcutEditor=new EditorWindow(store,lib.Entries.First(x=>x.Name=="메모장"),lib.Theme){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-19000,Top=-19000};shortcutEditor.Show();Snapshot(shortcutEditor,Path.Combine(output,"미리보기-편집창.png"));shortcutEditor.Close();
+        win.UpdateTheme(ThemeSettings.Presets[0].Copy());win.Navigate(null);win.UpdateBackground(new BackgroundSettings(),null);foreach(var d in new[]{"classic","modern","cat","neon","paper"}){var t=ThemeSettings.Presets[0].Copy();if(d!="classic"){t=ThemeSettings.DesignPresets.First(x=>x.Design==d).Copy();}win.UpdateTheme(t);Snapshot(win,Path.Combine(output,"확대-"+d+".png"),2);}
         win.Hide(); app.Shutdown(); return 0;
     }
 }

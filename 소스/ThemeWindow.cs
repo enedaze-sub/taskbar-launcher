@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
@@ -34,7 +34,7 @@ public sealed class ThemeWindow : Window
         var main = new Grid { Margin = new Thickness(24) };
         main.RowDefinitions.Add(new() { Height = GridLength.Auto }); main.RowDefinitions.Add(new() { Height = GridLength.Auto });
         main.RowDefinitions.Add(new()); main.RowDefinitions.Add(new() { Height = GridLength.Auto }); Content = main;
-        var heading = UI.Text("취향을 담은 작은 다이얼", 28); heading.FontFamily = UI.DisplayFont; main.Children.Add(heading);
+        var heading = UI.Heading("색상 · UI 디자인", 25); main.Children.Add(heading);
 
         var selectorArea = new StackPanel { Margin = new Thickness(0, 13, 0, 18) }; Grid.SetRow(selectorArea, 1); main.Children.Add(selectorArea);
         var categories = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 7) }; selectorArea.Children.Add(categories);
@@ -57,7 +57,7 @@ public sealed class ThemeWindow : Window
         var footer = new DockPanel { Margin = new Thickness(0, 15, 0, 0) }; Grid.SetRow(footer, 3); main.Children.Add(footer);
         var actions = new StackPanel { Orientation = Orientation.Horizontal }; DockPanel.SetDock(actions, Dock.Right);
         var cancel = UI.Button("취소", () => DialogResult = false); cancel.IsCancel = true; actions.Children.Add(cancel);
-        var apply = UI.Button("적용", Apply); apply.IsDefault = true; actions.Children.Add(apply); footer.Children.Add(actions); footer.Children.Add(status);
+        var apply = UI.Button("적용", Apply); apply.IsDefault = true; apply.MinWidth = 84; apply.FontWeight = FontWeights.SemiBold; UI.Res(apply, Control.BackgroundProperty, "SkinAccent"); UI.Res(apply, Control.ForegroundProperty, "SkinAccentText"); actions.Children.Add(apply); footer.Children.Add(actions); footer.Children.Add(status);
         SelectCategory(savedId != null ? 2 : Draft.Design == "classic" ? 0 : 1); Update();
     }
     private void AddPresetTiles(IReadOnlyList<ThemeSettings> presets, int columns, int category)
@@ -76,7 +76,7 @@ public sealed class ThemeWindow : Window
             {
                 var mark = UI.Text(preset.Design switch { "cat" => "=^·^=", "neon" => "✦", "paper" => "▤", _ => "▦" }, 24, UI.Brush(preset.Accent)); mark.TextAlignment = TextAlignment.Center; content.Children.Add(mark);
             }
-            var name = UI.Text(preset.Name, 14, UI.Brush(preset.Text)); name.TextAlignment = TextAlignment.Center; name.Margin = new Thickness(0, 7, 0, 0); content.Children.Add(name);
+            var name = UI.Text(preset.Name, 13, UI.Brush(preset.Text)); name.TextAlignment = TextAlignment.Center; name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis; name.Margin = new Thickness(0, 7, 0, 0); content.Children.Add(name);
             var tile = UI.Button("", () => UsePreset(preset)); tile.Tag="keep-colors"; tile.Background = UI.Brush(preset.Background); tile.Content = content; tile.ToolTip = preset.Name; grid.Children.Add(tile);
         }
         selectors.Children.Add(grid);
@@ -171,7 +171,7 @@ public sealed class ThemeWindow : Window
     private void Update() { Skin.Palette(this,Draft); Skin.Connect(this); preview.UpdateTheme(Draft); status.Text = Draft.Name + " · " + Draft.Slots + "칸"; }
     private void BuildControls()
     {
-        controls.Children.Clear(); colorBoxes.Clear(); var label = UI.Text("나만의 색상과 디스플레이", 18); label.FontFamily = UI.DisplayFont; controls.Children.Add(label);
+        controls.Children.Clear(); colorBoxes.Clear(); var label = UI.Heading("나만의 색상과 배치", 17); controls.Children.Add(label);
         var designLabel = UI.Text("디자인 스타일", 12, UI.Muted); designLabel.Margin = new Thickness(0, 13, 0, 5); controls.Children.Add(designLabel);
         var styles = new[] { "classic", "modern", "cat", "neon", "paper" };
         var design = new ComboBox { ItemsSource = new[] { "기본 부채꼴", "모던", "고양이", "네온", "카드 보드" }, SelectedIndex = Array.IndexOf(styles, Draft.Design) }; controls.Children.Add(design);

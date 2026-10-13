@@ -15,6 +15,23 @@ internal static class Native
     [DllImport("user32.dll")] private static extern bool GetCursorPos(out NativePoint point);
     [DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(NativePoint point, uint flags);
     [DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
+    [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
+    private static int ColorRef(string hex) { var c = (Color)ColorConverter.ConvertFromString(hex); return c.R | c.G << 8 | c.B << 16; }
+    /// <summary>Windows 11 caption colors; older systems ignore the attributes.</summary>
+    public static void PaintCaption(IntPtr hwnd, string background, string text, bool dark)
+    {
+        try
+        {
+            int value = dark ? 1 : 0; DwmSetWindowAttribute(hwnd, 20, ref value, 4);
+            value = ColorRef(background); DwmSetWindowAttribute(hwnd, 35, ref value, 4);
+            value = ColorRef(text); DwmSetWindowAttribute(hwnd, 36, ref value, 4);
+        }
+        catch { }
+    }
+    public static void RoundCorners(Window window)
+    {
+        try { int round = 2; DwmSetWindowAttribute(new WindowInteropHelper(window).Handle, 33, ref round, 4); } catch { }
+    }
     public static (Point Cursor, Rect Work) CursorWorkArea()
     {
         GetCursorPos(out var cursor);
