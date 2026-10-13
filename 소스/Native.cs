@@ -32,6 +32,19 @@ internal static class Native
     {
         try { int round = 2; DwmSetWindowAttribute(new WindowInteropHelper(window).Handle, 33, ref round, 4); } catch { }
     }
+    [DllImport("kernel32.dll")] private static extern bool SetProcessWorkingSetSize(IntPtr process, IntPtr minimum, IntPtr maximum);
+    /// <summary>Compacts the managed heap and returns idle pages to Windows. Pages come back on demand when the launcher reopens.</summary>
+    public static void TrimMemory()
+    {
+        try
+        {
+            System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(2, GCCollectionMode.Forced, true, true); GC.WaitForPendingFinalizers(); GC.Collect();
+            using var self = System.Diagnostics.Process.GetCurrentProcess();
+            SetProcessWorkingSetSize(self.Handle, (IntPtr)(-1), (IntPtr)(-1));
+        }
+        catch { }
+    }
     public static (Point Cursor, Rect Work) CursorWorkArea()
     {
         GetCursorPos(out var cursor);

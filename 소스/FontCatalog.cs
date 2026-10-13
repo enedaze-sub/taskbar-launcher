@@ -99,6 +99,8 @@ internal static class FontCatalog
         ["Jua"] = "주아", ["Gowun Dodum"] = "고운돋움", ["Gowun Batang"] = "고운바탕", ["Noto Sans KR"] = "Noto Sans KR (본고딕)", ["Noto Serif KR"] = "Noto Serif KR (본명조)",
         ["Cafe24 Ssurround"] = "카페24 써라운드", ["Cafe24 Ssurround air"] = "카페24 써라운드 에어", ["NanumGothic"] = "나눔고딕", ["Malgun Gothic"] = "맑은 고딕"
     };
+    /// <summary>Drops the scanned font list after the picker closes; it is rebuilt the next time it opens.</summary>
+    internal static void Release() { lock (gate) all = null; }
     private static bool SupportsHangul(FontFamily family)
     {
         foreach (var typeface in family.GetTypefaces())

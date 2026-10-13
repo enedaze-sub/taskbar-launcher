@@ -81,7 +81,7 @@ public sealed class BackgroundWindow : Window
         preview = new LauncherWindow(store, copy, true);
         if (entry != null) preview.PreviewEntry(entry);
         cropBounds = entry != null ? preview.SlotGeometry(entry.Id)?.Bounds ?? BackgroundTools.Bounds : preview.ShellGeometry().Bounds;
-        previewArea = new Border { Background = UI.Brush("#233245"), BorderBrush = UI.Brush("#42546C"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18), Padding = new Thickness(12, 0, 12, 0), Child = preview.DetachPreview(), Cursor = Cursors.SizeAll };
+        previewArea = new Border { Background = UI.Brush("#233245"), BorderBrush = UI.Brush("#42546C"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18), Padding = new Thickness(12, 0, 12, 0), Child = preview.DetachPreview(this), Cursor = Cursors.SizeAll };
         Grid.SetRow(previewArea, 1); main.Children.Add(previewArea);
         var controls = new Grid { Margin = new Thickness(0, 14, 0, 0) }; controls.ColumnDefinitions.Add(new()); controls.ColumnDefinitions.Add(new()); controls.RowDefinitions.Add(new()); controls.RowDefinitions.Add(new()); Grid.SetRow(controls, 2);
         AddSlider(controls, "확대 / 축소", zoom, 0, 0); AddSlider(controls, "배경 어둡게", darkness, 1, 0); AddSlider(controls, "가로 위치", horizontal, 0, 1); AddSlider(controls, "세로 위치", vertical, 1, 1); main.Children.Add(controls);

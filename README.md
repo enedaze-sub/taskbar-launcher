@@ -38,7 +38,7 @@ git clone https://github.com/enedaze-sub/taskbar-launcher.git
 .\소스\빌드.ps1            # 실행파일 폴더로 빌드 (실행 중인 런처는 먼저 종료)
 .\소스\빌드.ps1 D:\out     # 다른 폴더로 빌드
 ```
-자동 검사: `DeckLauncher.exe --self-test <결과폴더>` · 화면 미리보기: `DeckLauncher.exe --preview <폴더>`
+자동 검사: `DeckLauncher.exe --self-test <결과폴더>` · 화면 미리보기: `DeckLauncher.exe --preview <폴더>` · 메모리 측정: `DeckLauncher.exe --memtest <Data 복사본> <결과폴더> [software]`
 
 ## 브랜치와 버전
 | 이름 | 내용 |

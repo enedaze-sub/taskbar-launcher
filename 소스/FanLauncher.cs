@@ -89,7 +89,7 @@ public sealed partial class LauncherWindow : Window
             if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { Manage(); e.Handled = true; }
         };
         MouseWheel += (_, e) => { if(library.WheelDialEnabled) RotateDial(e.Delta < 0 ? 1 : -1); e.Handled = true; };
-        IsVisibleChanged += (_, _) => { if (!IsVisible) CloseFolderPreview(); };
+        IsVisibleChanged += (_, _) => { if (!IsVisible) { CloseFolderPreview(); if (!previewMode) ScheduleTrim(); } };
         Deactivated += (_, _) => Dispatcher.BeginInvoke(new Action(HandleFocusLoss), System.Windows.Threading.DispatcherPriority.Background);
         Refresh(); if (!previewMode) PositionAtTaskbar(null);
     }
@@ -250,7 +250,7 @@ public sealed partial class LauncherWindow : Window
         string? slotPath = slotOverrides.GetValueOrDefault(entry.Id) ?? (entry.Background.ImageFile != null ? store.IconPath(entry.Background.ImageFile) : null);
         if (slotPath != null)
         {
-            try { if(!slotImages.TryGetValue(slotPath,out var bitmap))slotImages[slotPath]=bitmap=(BitmapSource)Native.LoadImage(slotPath,1024);contents.Children.Add(BackgroundTools.Layer(bitmap,entry.Background,geometry)); } catch { }
+            try { if(!slotImages.TryGetValue(slotPath,out var bitmap))slotImages[slotPath]=bitmap=(BitmapSource)Native.LoadImage(slotPath,640);contents.Children.Add(BackgroundTools.Layer(bitmap,entry.Background,geometry)); } catch { }
         }
         var point = IconPoint(geometry,angle); var bounds = geometry.Bounds;
         bool tiles = TileLayout;
@@ -394,7 +394,15 @@ public sealed partial class LauncherWindow : Window
             if (e.Data.GetData(LibraryWindow.EntryDragFormat) is string[] ids && library.MoveEntries(ids, parent)) { store.Save(library); Refresh(); }
         };
     }
-    internal UIElement DetachPreview() { Content = null; return root; }
+    /// <summary>
+    /// Hands the drawing to a settings window. The hidden preview Window is closed together with that host window;
+    /// otherwise every preview would stay registered in Application.Windows (and in memory) until the app exits.
+    /// </summary>
+    internal UIElement DetachPreview(Window host)
+    {
+        Content = null; host.Closed += (_, _) => Close();
+        return root;
+    }
     internal void UpdateBackground(BackgroundSettings settings, string? path, string? entryId = null) { if(entryId==null) { library.Background = settings; backgroundOverride = path; } else { library.Find(entryId)!.Background=settings; slotOverrides[entryId]=path; } Refresh(); }
     internal void UpdateTheme(ThemeSettings theme) { library.Theme=theme;Refresh(); }
     internal Geometry? SlotGeometry(string id) => slotShapes.GetValueOrDefault(id);
@@ -409,6 +417,14 @@ public sealed partial class LauncherWindow : Window
         try { using var process = Launch.Start(entry); Hide(); }
         catch (Exception ex) { modal = true; try { UI.Error(ex); } finally { modal = false; } }
     }
+    private System.Windows.Threading.DispatcherTimer? trimTimer;
+    /// <summary>After the launcher hides or a settings window closes, give unused memory back to Windows.</summary>
+    private void ScheduleTrim()
+    {
+        trimTimer ??= new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        trimTimer.Stop(); trimTimer.Tick -= TrimTick; trimTimer.Tick += TrimTick; trimTimer.Start();
+    }
+    private void TrimTick(object? sender, EventArgs e) { trimTimer!.Stop(); if (!modal) Native.TrimMemory(); }
     private void Manage()
     {
         CloseFolderPreview(); modal = true;

@@ -11,6 +11,7 @@ public static class Program
     {
         if (args.Contains("--self-test")) return SelfTests.Run(args.Last());
         if (args.Contains("--preview")) return Preview.Run(args.Last());
+        if (args.Length >= 3 && args[0] == "--memtest") return MemoryProbe.Run(args[1], args[2], args.Contains("software"));
         using var mutex = new Mutex(true, @"Local\DeckLauncher.6_1sol." + Environment.UserName, out bool first);
         using var signal = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\DeckLauncher.6_1sol.Show." + Environment.UserName);
         if (!first) { signal.Set(); return 0; }

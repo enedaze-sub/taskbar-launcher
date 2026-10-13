@@ -50,7 +50,7 @@ public sealed class ThemeWindow : Window
         var body = new Grid(); body.ColumnDefinitions.Add(new()); body.ColumnDefinitions.Add(new() { Width = new GridLength(300) }); Grid.SetRow(body, 2); main.Children.Add(body);
         preview = new LauncherWindow(store, new Library { Entries = entries, Theme = Draft, Background = library.Background.Copy() }, true);
         var sample = new Grid { Margin = new Thickness(0, 0, 20, 0) }; sample.RowDefinitions.Add(new()); sample.RowDefinitions.Add(new() { Height = GridLength.Auto });
-        sample.Children.Add(UI.Res(new Border { CornerRadius = new CornerRadius(18), Padding = new Thickness(8), Child = preview.DetachPreview() }, Border.BackgroundProperty, "SkinPanel"));
+        sample.Children.Add(UI.Res(new Border { CornerRadius = new CornerRadius(18), Padding = new Thickness(8), Child = preview.DetachPreview(this) }, Border.BackgroundProperty, "SkinPanel"));
         var hint = UI.Text("실제 런처 미리보기 · 디자인과 색상은 서로 독립이라 자유롭게 조합할 수 있어요", 12.5, UI.Muted); hint.Margin = new Thickness(10, 12, 0, 4); Grid.SetRow(hint, 1); sample.Children.Add(hint); body.Children.Add(sample);
         var scroll = new ScrollViewer { Content = controls, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled }; Grid.SetColumn(scroll, 1); body.Children.Add(scroll);
         BuildControls();
@@ -77,7 +77,7 @@ public sealed class ThemeWindow : Window
             {
                 // A real miniature of the design in its own recommended palette.
                 var mini = new LauncherWindow(store, new Library { Entries = entries, Theme = preset.Copy() }, true);
-                content.Children.Add(new Viewbox { Height = 86, Stretch = Stretch.Uniform, Child = mini.DetachPreview(), IsHitTestVisible = false });
+                content.Children.Add(new Viewbox { Height = 86, Stretch = Stretch.Uniform, Child = mini.DetachPreview(this), IsHitTestVisible = false });
                 var name = UI.Text(preset.Name, 13, UI.Brush(preset.Text)); name.FontWeight = FontWeights.SemiBold; name.TextAlignment = TextAlignment.Center; name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis; name.Margin = new Thickness(0, 4, 0, 0); content.Children.Add(name);
             }
             var tile = UI.Button("", () => UsePreset(preset)); tile.Tag="keep-colors"; tile.Background = UI.Brush(preset.Background); tile.Content = content; tile.ToolTip = category == 1 ? preset.Name + " · 디자인만 바꾸고 지금 색상은 유지해요" : preset.Name; tile.Padding = new Thickness(6, category == 0 ? 10 : 6, 6, 6); grid.Children.Add(tile);

@@ -52,7 +52,7 @@ public sealed class FontWindow : Window
         var launcherCaption = Caption("런처 미리보기", launcherName); right.Children.Add(launcherCaption);
         var entries = library.Entries.Count == 0 ? new List<Entry> { new() { Name = "내 폴더", IsFolder = true }, new() { Name = "바로가기" }, new() { Name = "메모" } } : library.Entries;
         preview = new LauncherWindow(store, new Library { Entries = entries, Theme = library.Theme.Copy(), Background = library.Background.Copy() }, true);
-        var stage = UI.Res(new Border { CornerRadius = new CornerRadius(18), Padding = new Thickness(10, 8, 10, 0), Margin = new Thickness(0, 8, 0, 16), Child = preview.DetachPreview() }, Border.BackgroundProperty, "SkinPanel"); Grid.SetRow(stage, 1); right.Children.Add(stage);
+        var stage = UI.Res(new Border { CornerRadius = new CornerRadius(18), Padding = new Thickness(10, 8, 10, 0), Margin = new Thickness(0, 8, 0, 16), Child = preview.DetachPreview(this) }, Border.BackgroundProperty, "SkinPanel"); Grid.SetRow(stage, 1); right.Children.Add(stage);
         var interfaceCaption = Caption("설정 창 미리보기", interfaceName); Grid.SetRow(interfaceCaption, 2); right.Children.Add(interfaceCaption);
         UI.Res(sample, Border.BackgroundProperty, "SkinPanel"); sample.Margin = new Thickness(0, 8, 0, 0); Grid.SetRow(sample, 3); right.Children.Add(sample); BuildSample();
 
@@ -61,7 +61,7 @@ public sealed class FontWindow : Window
         var cancel = UI.Button("취소", () => DialogResult = false); cancel.IsCancel = true; cancel.MinWidth = 84; actions.Children.Add(cancel);
         var apply = UI.Button("적용", Apply); apply.IsDefault = true; apply.MinWidth = 84; apply.FontWeight = FontWeights.SemiBold; UI.Res(apply, Control.BackgroundProperty, "SkinAccent"); UI.Res(apply, Control.ForegroundProperty, "SkinAccentText"); actions.Children.Add(apply); footer.Children.Add(actions);
         var reset = UI.IconButton("\uE72C", "모두 기본값으로", () => { draft.Launcher = ""; draft.Interface = ""; Update(); Fill(); }); reset.Background = Brushes.Transparent; reset.HorizontalAlignment = HorizontalAlignment.Left; footer.Children.Add(reset);
-        SelectTarget(true); Update(); Loaded += (_, _) => Skin.Connect(this);
+        SelectTarget(true); Update(); Loaded += (_, _) => Skin.Connect(this); Closed += (_, _) => FontCatalog.Release();
     }
     private static FrameworkElement Caption(string title, TextBlock value)
     {

@@ -169,7 +169,7 @@ public sealed class LibraryWindow : Window
         Drop += (_, e) => { if (e.Data.GetDataPresent(EntryDragFormat) && e.Data.GetData(EntryDragFormat) is string[] ids) DropEntries(ids, current); else if (e.Data.GetData(DataFormats.FileDrop) is string[] paths) RegisterPaths(paths); e.Handled = true; };
         PreviewKeyDown += (_, e) =>
         {
-            if (e.Key == Key.Escape) { if (search.Text.Length > 0) search.Clear(); else if (current != null) Navigate(library.Find(current)?.ParentId); else Hide(); e.Handled = true; }
+            if (e.Key == Key.Escape) { if (search.Text.Length > 0) search.Clear(); else if (current != null) Navigate(library.Find(current)?.ParentId); else Close(); e.Handled = true; }
             if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.F) { search.Focus(); search.SelectAll(); e.Handled = true; }
             if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.N) { AddFiles(); e.Handled = true; }
         };
@@ -271,7 +271,7 @@ public sealed class LibraryWindow : Window
             var cardContent = new Grid();
             if (e.Background.ImageFile != null)
             {
-                try { var bitmap = Native.LoadImage(store.IconPath(e.Background.ImageFile), 512); var image = new Image { Source=bitmap, Stretch=Stretch.UniformToFill, Opacity=1-e.Background.Darkness }; var crop = BackgroundTools.ImageRect(((System.Windows.Media.Imaging.BitmapSource)bitmap).PixelWidth,((System.Windows.Media.Imaging.BitmapSource)bitmap).PixelHeight,e.Background,new Rect(0,0,inner,innerHeight)); image.Width=crop.Width;image.Height=crop.Height;var canvas=new Canvas { Width=inner,Height=innerHeight,Clip=new RectangleGeometry(new Rect(0,0,inner,innerHeight),10,10) };Canvas.SetLeft(image,crop.X);Canvas.SetTop(image,crop.Y);canvas.Children.Add(image);cardContent.Children.Add(canvas); } catch { }
+                try { var bitmap = Native.LoadImage(store.IconPath(e.Background.ImageFile), 320); var image = new Image { Source=bitmap, Stretch=Stretch.UniformToFill, Opacity=1-e.Background.Darkness }; var crop = BackgroundTools.ImageRect(((System.Windows.Media.Imaging.BitmapSource)bitmap).PixelWidth,((System.Windows.Media.Imaging.BitmapSource)bitmap).PixelHeight,e.Background,new Rect(0,0,inner,innerHeight)); image.Width=crop.Width;image.Height=crop.Height;var canvas=new Canvas { Width=inner,Height=innerHeight,Clip=new RectangleGeometry(new Rect(0,0,inner,innerHeight),10,10) };Canvas.SetLeft(image,crop.X);Canvas.SetTop(image,crop.Y);canvas.Children.Add(image);cardContent.Children.Add(canvas); } catch { }
             }
             cardContent.Children.Add(stack); card.Content = cardContent; card.ContextMenu = EntryMenu(e);
             bool dragged = false; Point? pressed = null;

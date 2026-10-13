@@ -296,6 +296,8 @@ internal static class SelfTests
             UI.ApplyFonts(lib.Fonts);radial.Navigate(null);radial.UpdateLayout();
             Check(Find<TextBlock>(radial).Any(t=>t.FontFamily.Source.EndsWith("#Gowun Dodum")) ,"Launcher text uses the chosen launcher font");
             lib.Fonts=new FontSettings();UI.ApplyFonts(lib.Fonts);store.Save(lib);
+            int windowsBefore=app.Windows.Count;var leakCheck=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};leakCheck.Show();leakCheck.UpdateLayout();bool previewsOpen=app.Windows.Count>windowsBefore+1;leakCheck.Close();var fontLeak=new FontWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};fontLeak.Show();fontLeak.Close();
+            Check(previewsOpen && app.Windows.Count==windowsBefore,"Closing design and font windows also closes their hidden preview windows (no window leak)");
             radial.Hide(); app.Shutdown();
             log.Add("ALL CHECKS PASSED"); File.WriteAllLines(Path.Combine(output, "검증결과.txt"), log); return 0;
         }
