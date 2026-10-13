@@ -17,9 +17,14 @@ internal static class Native
     [DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
     public static (Point Cursor, Rect Work) CursorWorkArea()
     {
-        GetCursorPos(out var cursor); var info = new MonitorInfo { Size = (uint)Marshal.SizeOf<MonitorInfo>() };
-        if (GetMonitorInfo(MonitorFromPoint(cursor, 2), ref info)) return (new Point(cursor.X, cursor.Y), new Rect(info.Work.Left, info.Work.Top, info.Work.Right - info.Work.Left, info.Work.Bottom - info.Work.Top));
-        return (new Point(cursor.X, cursor.Y), SystemParameters.WorkArea);
+        GetCursorPos(out var cursor);
+        return (new Point(cursor.X, cursor.Y), WorkAreaAt(new Point(cursor.X, cursor.Y)));
+    }
+    public static Rect WorkAreaAt(Point point)
+    {
+        var cursor = new NativePoint { X = (int)point.X, Y = (int)point.Y }; var info = new MonitorInfo { Size = (uint)Marshal.SizeOf<MonitorInfo>() };
+        if (GetMonitorInfo(MonitorFromPoint(cursor, 2), ref info)) return new Rect(info.Work.Left, info.Work.Top, info.Work.Right - info.Work.Left, info.Work.Bottom - info.Work.Top);
+        return SystemParameters.WorkArea;
     }
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct SHFILEINFO
@@ -99,10 +104,10 @@ internal static class Native
         }
         finally { DestroyIcon(info.hIcon); }
     }
-    public static ImageSource LoadImage(string path)
+    public static ImageSource LoadImage(string path, int decodeWidth = 256)
     {
         var image = new BitmapImage(); image.BeginInit(); image.CacheOption = BitmapCacheOption.OnLoad;
-        image.DecodePixelWidth = 256; image.UriSource = new Uri(Path.GetFullPath(path)); image.EndInit(); image.Freeze(); return image;
+        image.DecodePixelWidth = decodeWidth; image.UriSource = new Uri(Path.GetFullPath(path)); image.EndInit(); image.Freeze(); return image;
     }
     public static ImageSource FolderIcon()
     {

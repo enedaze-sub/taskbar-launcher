@@ -20,11 +20,27 @@ public sealed class Entry
 public sealed class Library
 {
     public int Version { get; set; } = 1;
-    public bool HideAfterLaunch { get; set; } = true;
+    public int UiRevision { get; set; }
+    public bool HideAfterLaunch { get; set; }
+    public BackgroundSettings Background { get; set; } = new();
     public List<Entry> Entries { get; set; } = new();
 
     public IEnumerable<Entry> Children(string? parent) => Entries.Where(e => e.ParentId == parent);
     public Entry? Find(string? id) => Entries.FirstOrDefault(e => e.Id == id);
+    public bool ApplyUiUpdate()
+    {
+        if (UiRevision >= 3) return false;
+        HideAfterLaunch = false; UiRevision = 3; return true;
+    }
+    public bool MoveEntries(IEnumerable<string> ids, string? parent)
+    {
+        var entries = ids.Distinct().Select(Find).ToList();
+        if (entries.Count == 0 || entries.Any(x => x == null || !CanMove(x, parent))) return false;
+        bool changed = false;
+        foreach (var entry in entries) { changed |= entry!.ParentId != parent; entry.ParentId = parent; }
+        return changed;
+    }
+    public IEnumerable<string> ImageFiles() => Entries.Select(e => e.IconFile).Append(Background.ImageFile).Where(x => x != null).Cast<string>().Distinct();
     public string Trail(string? parent)
     {
         var names = new List<string>();
@@ -58,6 +74,7 @@ public sealed class Library
     }
     public void Validate()
     {
+        Background ??= new(); Background.Validate();
         if (Version != 1) throw new InvalidDataException("지원하지 않는 라이브러리 버전입니다.");
         var ids = new HashSet<string>();
         foreach (var e in Entries)
@@ -109,7 +126,7 @@ public sealed class Store
         Save(library);
         using var stream = File.Create(path); using var zip = new ZipArchive(stream, ZipArchiveMode.Create);
         zip.CreateEntryFromFile(FilePath, "library.json");
-        foreach (var icon in library.Entries.Select(e => e.IconFile).Where(x => x != null).Distinct())
+        foreach (var icon in library.ImageFiles())
         {
             if (!File.Exists(IconPath(icon!))) throw new FileNotFoundException("사용자 지정 아이콘을 찾을 수 없습니다.", icon);
             zip.CreateEntryFromFile(IconPath(icon!), "icons/" + icon);
@@ -125,7 +142,7 @@ public sealed class Store
         using (var reader = new StreamReader(json.Open())) imported = JsonSerializer.Deserialize<Library>(reader.ReadToEnd()) ?? throw new InvalidDataException("잘못된 백업입니다.");
         imported.Validate();
         var icons = new Dictionary<string, byte[]>(); long total = 0;
-        foreach (var name in imported.Entries.Select(e => e.IconFile).Where(x => x != null).Distinct())
+        foreach (var name in imported.ImageFiles())
         {
             var entry = zip.GetEntry("icons/" + name) ?? throw new InvalidDataException("아이콘 파일이 누락되었습니다.");
             total += entry.Length;
@@ -138,15 +155,13 @@ public sealed class Store
     {
         backup.Library.Validate(); Directory.CreateDirectory(IconDirectory);
         var names = new Dictionary<string, string>();
-        foreach (var e in backup.Library.Entries.Where(e => e.IconFile != null))
+        foreach (var image in backup.Library.ImageFiles().ToArray())
         {
-            if (!names.TryGetValue(e.IconFile!, out string? replacement))
-            {
-                replacement = Guid.NewGuid().ToString("N") + Path.GetExtension(e.IconFile);
-                File.WriteAllBytes(IconPath(replacement), backup.Icons[e.IconFile!]); names[e.IconFile!] = replacement;
-            }
-            e.IconFile = replacement;
+            string replacement = Guid.NewGuid().ToString("N") + Path.GetExtension(image);
+            File.WriteAllBytes(IconPath(replacement), backup.Icons[image]); names[image] = replacement;
         }
+        foreach (var e in backup.Library.Entries.Where(e => e.IconFile != null)) e.IconFile = names[e.IconFile!];
+        if (backup.Library.Background.ImageFile != null) backup.Library.Background.ImageFile = names[backup.Library.Background.ImageFile];
         Save(backup.Library); return backup.Library;
     }
 }

@@ -7,6 +7,7 @@ using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using WpfPath = System.Windows.Shapes.Path;
 
@@ -21,8 +22,10 @@ public sealed class LauncherWindow : Window
     private string? current;
     private int page;
     private bool modal;
-    private bool menuOpen;
-    private readonly Canvas fan = new() { Width = 920, Height = 510 };
+    private readonly bool previewMode;
+    private string? backgroundOverride, backgroundKey;
+    private BitmapSource? backgroundImage;
+    private readonly Canvas fan = new() { Width = 920, Height = 454 };
     private readonly Grid root = new();
     private readonly TextBlock title = UI.Text("", 23);
     private readonly TextBlock note = UI.Text("", 13, UI.Muted);
@@ -38,21 +41,22 @@ public sealed class LauncherWindow : Window
     internal int CurrentPage => page;
     internal string DisplayedNote => note.Text;
 
-    public LauncherWindow(Store store, Library library)
+    public LauncherWindow(Store store, Library library, bool previewMode = false)
     {
-        this.store = store; this.library = library;
+        this.store = store; this.library = library; this.previewMode = previewMode;
         UI.Theme(this); Title = "작업표시줄 런처";
-        Width = 920; Height = 510; WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
-        AllowsTransparency = true; Background = Brushes.Transparent; Topmost = true;
+        Width = 920; Height = 454; WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
+        AllowsTransparency = true; Background = Brushes.Transparent; Topmost = false;
         if (File.Exists(System.IO.Path.Combine(AppContext.BaseDirectory, "launcher.ico"))) Icon = Native.LoadImage(System.IO.Path.Combine(AppContext.BaseDirectory, "launcher.ico"));
         var view = new Viewbox { Child = fan, Stretch = Stretch.Uniform }; root.Children.Add(view); Content = root;
-        fan.RenderTransform = unfolding; fan.RenderTransformOrigin = new Point(.5, .89);
+        fan.RenderTransform = unfolding; fan.RenderTransformOrigin = new Point(.5, 1); fan.IsHitTestVisible = !previewMode;
+        if (previewMode) KeyboardNavigation.SetTabNavigation(fan, KeyboardNavigationMode.None);
+        title.FontFamily = UI.DisplayFont;
         SourceInitialized += (_, _) => Native.ConfigureTaskbar(this);
-        Loaded += (_, _) => { if (ShowActivated) { PositionAtTaskbar(); AnimateOpen(); } };
-        ContextMenuOpening += (_, _) => menuOpen = true;
-        ContextMenuClosing += (_, _) => menuOpen = false;
-        Deactivated += (_, _) => Dispatcher.BeginInvoke(new Action(() => { if (!modal && !menuOpen && !IsActive && ShowActivated) Hide(); }));
-        Closed += (_, _) => Application.Current.Shutdown();
+        Loaded += async (_, _) => { if (!previewMode && ShowActivated) { await PositionAtTaskbarAsync(); AnimateOpen(); } };
+        Activated += async (_, _) => { if (!previewMode && ShowActivated && !modal) await PositionAtTaskbarAsync(); };
+        DpiChanged += async (_, _) => { if (!previewMode && ShowActivated && IsVisible && !modal) await PositionAtTaskbarAsync(); };
+        if (!previewMode) Closed += (_, _) => Application.Current.Shutdown();
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.Escape) { if (current != null) Navigate(library.Find(current)?.ParentId); else Hide(); e.Handled = true; }
@@ -62,22 +66,23 @@ public sealed class LauncherWindow : Window
             if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { Manage(); e.Handled = true; }
         };
         MouseWheel += (_, e) => { ChangePage(e.Delta < 0 ? 1 : -1); e.Handled = true; };
-        Refresh(); PositionAtTaskbar();
+        Refresh(); if (!previewMode) PositionAtTaskbar(null);
     }
-    private void PositionAtTaskbar()
+    private async System.Threading.Tasks.Task PositionAtTaskbarAsync()
+        => PositionAtTaskbar(await TaskbarAnchor.FindAsync());
+    private void PositionAtTaskbar(Rect? anchor)
     {
         var location = Native.CursorWorkArea(); var dpi = VisualTreeHelper.GetDpi(this);
-        var work = new Rect(location.Work.Left / dpi.DpiScaleX, location.Work.Top / dpi.DpiScaleY, location.Work.Width / dpi.DpiScaleX, location.Work.Height / dpi.DpiScaleY);
-        Width = Math.Min(920, work.Width - 20); Height = Width * 510 / 920;
-        if (Height > work.Height - 20) { Height = work.Height - 20; Width = Height * 920 / 510; }
-        Left = Math.Clamp(location.Cursor.X / dpi.DpiScaleX - Width / 2, work.Left + 10, Math.Max(work.Left + 10, work.Right - Width - 10));
-        Top = work.Bottom - Height - 7;
+        var physicalWork = anchor.HasValue ? Native.WorkAreaAt(new Point(anchor.Value.X + anchor.Value.Width / 2, anchor.Value.Y + anchor.Value.Height / 2)) : location.Work;
+        var work = new Rect(physicalWork.Left / dpi.DpiScaleX, physicalWork.Top / dpi.DpiScaleY, physicalWork.Width / dpi.DpiScaleX, physicalWork.Height / dpi.DpiScaleY);
+        double center = anchor.HasValue ? (anchor.Value.X + anchor.Value.Width / 2) / dpi.DpiScaleX : !physicalWork.Contains(location.Cursor) && location.Cursor.X > physicalWork.Left ? location.Cursor.X / dpi.DpiScaleX : work.Left + work.Width / 2;
+        var position = TaskbarAnchor.Placement(work, center); Width = position.Width; Height = position.Height; Left = position.X; Top = position.Y;
     }
     public void Reveal()
     {
         if (modal) { foreach (Window window in OwnedWindows) window.Activate(); return; }
         if (IsVisible && IsActive) { Hide(); return; }
-        PositionAtTaskbar(); Show(); WindowState = WindowState.Normal; Activate(); Focus(); AnimateOpen();
+        Show(); WindowState = WindowState.Normal; Activate(); Focus(); _ = PositionAtTaskbarAsync(); AnimateOpen();
     }
     private void AnimateOpen()
     {
@@ -120,6 +125,14 @@ public sealed class LauncherWindow : Window
         // The window outside this shape remains transparent and does not intercept clicks.
         var shell = new WpfPath { Data = Sector(0.01, 390, -180, 0), Fill = Gradient("#1C293B", "#111C2B"), Stroke = UI.Brush("#425269"), StrokeThickness = 1, Effect = Shadow(26, .48) };
         fan.Children.Add(shell);
+        string? imagePath = backgroundOverride ?? (library.Background.ImageFile != null ? store.IconPath(library.Background.ImageFile) : null);
+        if (backgroundKey != imagePath)
+        {
+            backgroundKey = imagePath; backgroundImage = null;
+            try { if (imagePath != null) backgroundImage = (BitmapSource)Native.LoadImage(imagePath, 1920); } catch { }
+        }
+        bool hasBackground = backgroundImage != null;
+        if (hasBackground) fan.Children.Add(BackgroundTools.Layer(backgroundImage!, library.Background));
         var outerLine = new WpfPath { Data = Sector(386, 388, -177, -3), Fill = Gradient("#657F92", "#324459"), IsHitTestVisible = false, Opacity = .6 }; fan.Children.Add(outerLine);
         var all = library.Children(current).ToList(); var visible = all.Skip(page * PageSize).Take(PageSize).ToList();
         int count = visible.Count switch { 0 or 1 or 3 => 5, 2 or 4 => 6, _ => visible.Count };
@@ -132,49 +145,51 @@ public sealed class LauncherWindow : Window
             int entryIndex = index - offset;
             if (entryIndex < 0 || entryIndex >= visible.Count)
             {
-                var placeholder = new WpfPath { Data = geometry, Fill = Gradient("#263348", "#1D2A3B"), Stroke = UI.Brush("#37465D"), StrokeThickness = .7, Opacity = .45, IsHitTestVisible = false }; fan.Children.Add(placeholder); continue;
+                var placeholder = new WpfPath { Data = geometry, Fill = Gradient("#263348", "#1D2A3B"), Stroke = UI.Brush("#37465D"), StrokeThickness = .7, Opacity = hasBackground ? .25 : .45, IsHitTestVisible = false }; fan.Children.Add(placeholder); continue;
             }
             AddSlot(visible[entryIndex], geometry, (start + end) / 2);
         }
         var inner = new WpfPath { Data = Sector(.01, 205, -180, 0), Fill = Gradient("#182739", "#111C2B"), Stroke = UI.Brush("#314458"), StrokeThickness = 1, IsHitTestVisible = false }; fan.Children.Add(inner);
+        if (hasBackground) inner.Fill.Opacity = .65;
         var info = new StackPanel { Width = 310, HorizontalAlignment = HorizontalAlignment.Center, IsHitTestVisible = false };
         tag.TextAlignment = TextAlignment.Center; tag.Margin = new Thickness(0, 0, 0, 7);
         title.TextAlignment = TextAlignment.Center; title.TextTrimming = TextTrimming.CharacterEllipsis; title.TextWrapping = TextWrapping.NoWrap; title.FontWeight = FontWeights.Medium;
         note.TextAlignment = TextAlignment.Center; note.TextWrapping = TextWrapping.Wrap; note.Margin = new Thickness(8, 9, 8, 0); note.MaxHeight = 57; note.LineHeight = 19; note.TextTrimming = TextTrimming.CharacterEllipsis;
         info.Children.Add(tag); info.Children.Add(title); info.Children.Add(note); Place(fan, info, 305, 278);
         var back = RoundButton(current == null ? "\uE80F" : "\uE72B", current == null ? "처음으로" : "상위 폴더", () => Navigate(library.Find(current)?.ParentId)); back.Opacity = current == null ? .5 : 1;
+        back.ToolTip = current == null ? "라이브러리 · 여기로 끌어 꺼내기" : "상위 폴더 · 여기로 끌어 꺼내기";
+        SetupFanDrop(back, library.Find(current)?.ParentId);
         Place(fan, back, 359, 403);
         var settings = RoundButton("\uE713", "설정 · 파일 / 폴더 / 이미지 / 메모", Manage, true); Place(fan, settings, 435, 396);
         var hide = RoundButton("\uE711", "숨기기 (Esc)", Hide); Place(fan, hide, 513, 403);
         var settingsMenu = new ContextMenu(); settingsMenu.Items.Add(UI.Menu("설정 열기", Manage)); settingsMenu.Items.Add(UI.Menu("런처 종료", () => Application.Current.Shutdown())); settings.ContextMenu = settingsMenu;
         if (PageCount > 1)
         {
-            var previous = RoundButton("\uE76B", "이전 페이지", () => ChangePage(-1)); previous.Width = previous.Height = 32; previous.IsEnabled = page > 0; Place(fan, previous, 284, 460);
-            var next = RoundButton("\uE76C", "다음 페이지", () => ChangePage(1)); next.Width = next.Height = 32; next.IsEnabled = page < PageCount - 1; Place(fan, next, 604, 460);
-            pageLabel.Text = $"{page + 1} / {PageCount}    ·    마우스 휠로 넘기기";
+            var previous = RoundButton("\uE76B", "이전 페이지", () => ChangePage(-1)); previous.Width = previous.Height = 32; previous.IsEnabled = page > 0; Place(fan, previous, 320, 409);
+            var next = RoundButton("\uE76C", "다음 페이지", () => ChangePage(1)); next.Width = next.Height = 32; next.IsEnabled = page < PageCount - 1; Place(fan, next, 572, 409);
+            pageLabel.Text = $"{page + 1} / {PageCount}"; pageLabel.TextAlignment = TextAlignment.Center; pageLabel.Width = 50; Place(fan, pageLabel, 612, 419);
         }
-        else pageLabel.Text = "아이콘에 마우스를 올려 메모 보기";
-        pageLabel.TextAlignment = TextAlignment.Center; pageLabel.Width = 280; Place(fan, pageLabel, 320, 464);
         DefaultNote();
     }
     private void AddSlot(Entry entry, Geometry geometry, double angle)
     {
-        var button = new Button { Width = 920, Height = 510, Style = SliceStyle, Clip = geometry, Background = Brushes.Transparent, Padding = new Thickness(0), Margin = new Thickness(0), Tag = entry.Id };
+        var button = new Button { Width = 920, Height = 454, Style = SliceStyle, Clip = geometry, Background = Brushes.Transparent, Padding = new Thickness(0), Margin = new Thickness(0), Tag = entry.Id };
         AutomationProperties.SetName(button, entry.Name); AutomationProperties.SetHelpText(button, entry.Note);
         if (entry.Note.Length > 80 || entry.Note.Count(x => x == '\n') > 2)
         {
             button.ToolTip = new ToolTip { Background = UI.Panel, Foreground = Brushes.White, BorderBrush = UI.Brush("#4A6077"), Padding = new Thickness(14), FontFamily = FontFamily, Content = new TextBlock { Text = entry.Note, Width = 280, TextWrapping = TextWrapping.Wrap, FontSize = 13 } };
             ToolTipService.SetInitialShowDelay(button, 650);
         }
-        var contents = new Canvas { Width = 920, Height = 510 };
+        var contents = new Canvas { Width = 920, Height = 454 };
         var shape = new WpfPath { Data = geometry, Fill = Gradient("#2A3B50", "#213043"), Stroke = UI.Brush("#4A6077"), StrokeThickness = .8 };
+        if (backgroundImage != null) shape.Fill.Opacity = .35;
         contents.Children.Add(shape);
         var point = Polar(301, angle);
         var iconFrame = new Border { Width = 60, Height = 60, CornerRadius = new CornerRadius(17), Background = Gradient("#3C5067", "#2A3C51"), BorderBrush = UI.Brush("#50637A"), BorderThickness = new Thickness(.7), Effect = Shadow(12, .28), RenderTransformOrigin = new Point(.5, .5), RenderTransform = new ScaleTransform(1, 1), IsHitTestVisible = false };
         ImageSource? source = IconFor(entry);
         iconFrame.Child = source != null ? new Image { Source = source, Width = 40, Height = 40, Stretch = Stretch.Uniform } : new TextBlock { Text = "↗", FontSize = 28, Foreground = UI.Accent, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         Place(contents, iconFrame, point.X - 30, point.Y - 38);
-        var name = new TextBlock { Text = entry.Name, Width = 95, FontSize = 13, FontWeight = FontWeights.Medium, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = UI.Brush("#F0F5FC"), IsHitTestVisible = false }; Place(contents, name, point.X - 47.5, point.Y + 31);
+        var name = new TextBlock { Text = entry.Name, Width = 95, FontSize = 14, FontFamily = UI.DisplayFont, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = UI.Brush("#F0F5FC"), IsHitTestVisible = false }; Place(contents, name, point.X - 47.5, point.Y + 31);
         if (entry.IsFolder)
         {
             var badge = new Border { Background = UI.Brush("#65D7CB"), CornerRadius = new CornerRadius(8), Padding = new Thickness(5, 1, 5, 1), IsHitTestVisible = false, Child = UI.Text(library.Children(entry.Id).Count().ToString(), 9, UI.Brush("#103B43")) }; Place(contents, badge, point.X + 13, point.Y + 3);
@@ -183,6 +198,7 @@ public sealed class LauncherWindow : Window
         void Highlight(bool active)
         {
             shape.Fill = active ? Gradient("#385D72", "#2A485F") : Gradient("#2A3B50", "#213043");
+            if (backgroundImage != null) shape.Fill.Opacity = active ? .68 : .35;
             shape.Stroke = active ? UI.Accent : UI.Brush("#4A6077"); shape.StrokeThickness = active ? 1.8 : .8;
             var transform = (ScaleTransform)iconFrame.RenderTransform; var animation = new DoubleAnimation(active ? 1.09 : 1, TimeSpan.FromMilliseconds(130)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
             transform.BeginAnimation(ScaleTransform.ScaleXProperty, animation); transform.BeginAnimation(ScaleTransform.ScaleYProperty, animation);
@@ -190,7 +206,18 @@ public sealed class LauncherWindow : Window
         }
         button.MouseEnter += (_, _) => Highlight(true); button.MouseLeave += (_, _) => Highlight(button.IsKeyboardFocused);
         button.GotKeyboardFocus += (_, _) => Highlight(true); button.LostKeyboardFocus += (_, _) => Highlight(button.IsMouseOver);
-        button.Click += (_, _) => Open(entry);
+        bool dragged = false; Point? pressed = null;
+        button.PreviewMouseLeftButtonDown += (_, e) => { pressed = e.GetPosition(this); dragged = false; };
+        button.PreviewMouseMove += (_, e) =>
+        {
+            if (previewMode || pressed == null || e.LeftButton != MouseButtonState.Pressed) return;
+            var point = e.GetPosition(this);
+            if (Math.Abs(point.X - pressed.Value.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(point.Y - pressed.Value.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+            pressed = null; dragged = true;
+            DragDrop.DoDragDrop(button, new DataObject(LibraryWindow.EntryDragFormat, new[] { entry.Id }), DragDropEffects.Move); e.Handled = true;
+        };
+        button.Click += (_, _) => { if (!dragged) Open(entry); };
+        if (entry.IsFolder) SetupFanDrop(button, entry.Id);
         var menu = new ContextMenu(); menu.Items.Add(UI.Menu("이름 / 이미지 / 메모 편집", () => Edit(entry))); menu.Items.Add(UI.Menu("폴더 관리 열기", Manage)); button.ContextMenu = menu;
         fan.Children.Add(button); slots[entry.Id] = button;
     }
@@ -225,6 +252,25 @@ public sealed class LauncherWindow : Window
     }
     internal void ChangePage(int direction) { page = Math.Clamp(page + direction, 0, PageCount - 1); Refresh(); }
     internal Button? Slot(string id) => slots.GetValueOrDefault(id);
+    private void SetupFanDrop(Button target, string? parent)
+    {
+        if (previewMode) return;
+        target.AllowDrop = true;
+        target.DragOver += (_, e) =>
+        {
+            bool allowed = e.Data.GetData(LibraryWindow.EntryDragFormat) is string[] ids && ids.All(id => library.Find(id) is Entry entry && library.CanMove(entry, parent));
+            e.Effects = allowed ? DragDropEffects.Move : DragDropEffects.None; e.Handled = true;
+            target.Effect = allowed ? new DropShadowEffect { Color = (Color)ColorConverter.ConvertFromString("#6DE0D4"), BlurRadius = 12, ShadowDepth = 0, Opacity = .8 } : null;
+        };
+        target.DragLeave += (_, _) => target.Effect = null;
+        target.Drop += (_, e) =>
+        {
+            e.Handled = true; target.Effect = null;
+            if (e.Data.GetData(LibraryWindow.EntryDragFormat) is string[] ids && library.MoveEntries(ids, parent)) { store.Save(library); Refresh(); }
+        };
+    }
+    internal UIElement DetachPreview() { Content = null; return root; }
+    internal void UpdateBackground(BackgroundSettings settings, string? path) { library.Background = settings; backgroundOverride = path; Refresh(); }
     private void Open(Entry entry)
     {
         if (entry.IsFolder) { Navigate(entry.Id); return; }
@@ -236,7 +282,7 @@ public sealed class LauncherWindow : Window
         modal = true;
         try
         {
-            var manager = new LibraryWindow(store, library) { Owner = this, Topmost = true, WindowStartupLocation = WindowStartupLocation.CenterScreen };
+            var manager = new LibraryWindow(store, library) { Owner = this, Topmost = false, WindowStartupLocation = WindowStartupLocation.CenterScreen };
             manager.Navigate(current); manager.ShowDialog(); library = manager.library;
             if (current != null && library.Find(current) == null) current = null;
             icons.Clear(); Refresh();
@@ -248,7 +294,7 @@ public sealed class LauncherWindow : Window
         modal = true;
         try
         {
-            var editor = new EditorWindow(store, entry) { Owner = this, Topmost = true, WindowStartupLocation = WindowStartupLocation.CenterScreen };
+            var editor = new EditorWindow(store, entry) { Owner = this, Topmost = false, WindowStartupLocation = WindowStartupLocation.CenterScreen };
             if (editor.ShowDialog() == true) { library.Entries[library.Entries.IndexOf(entry)] = editor.Result!; store.Save(library); icons.Clear(); Refresh(); }
         }
         finally { modal = false; if (IsVisible) Activate(); }

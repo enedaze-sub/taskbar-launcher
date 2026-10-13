@@ -12,11 +12,18 @@ namespace DeckLauncher;
 
 internal static class UI
 {
+    public static FontFamily RoundedFont => BundledFont("Gowun Dodum");
+    public static FontFamily DisplayFont => BundledFont("Jua");
+    private static FontFamily BundledFont(string family)
+    {
+        string directory = Path.Combine(AppContext.BaseDirectory, "Fonts");
+        return Directory.Exists(directory) ? new FontFamily(new Uri(directory + Path.DirectorySeparatorChar), "./#" + family) : new FontFamily("Noto Sans KR, Segoe UI, Malgun Gothic");
+    }
     public static readonly Brush Background = Brush("#101722"), Panel = Brush("#182332"), Muted = Brush("#93A5BA"), Accent = Brush("#6DE0D4");
     public static Brush Brush(string color) => new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
     public static void Theme(Window window)
     {
-        window.FontFamily = new FontFamily("Noto Sans KR, Segoe UI, Malgun Gothic"); window.FontSize = 13;
+        window.FontFamily = RoundedFont; window.FontSize = 14;
         TextOptions.SetTextFormattingMode(window, TextFormattingMode.Display);
         window.Foreground = Brushes.White; window.Background = Background;
         window.Resources = (ResourceDictionary)XamlReader.Parse(@"
@@ -46,6 +53,7 @@ internal static class UI
 
 public sealed class LibraryWindow : Window
 {
+    internal const string EntryDragFormat = "DeckLauncher.EntryIds";
     private readonly Store store;
     internal Library library;
     private string? current;
@@ -65,7 +73,8 @@ public sealed class LibraryWindow : Window
     public LibraryWindow(Store store, Library library)
     {
         this.store = store; this.library = library;
-        UI.Theme(this); Title = "런처 설정 · 파일과 폴더 관리"; ShowInTaskbar = false;
+        UI.Theme(this); Title = "런처 설정 · 파일과 폴더 관리"; ShowInTaskbar = false; Topmost = false;
+        heading.FontFamily = UI.DisplayFont;
         Width = 1040; Height = 710; MinWidth = 780; MinHeight = 520;
         WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.CanResizeWithGrip;
         var area = SystemParameters.WorkArea;
@@ -82,13 +91,13 @@ public sealed class LibraryWindow : Window
         var brandText = new StackPanel { Margin = new Thickness(12, 0, 0, 0) }; brandText.Children.Add(UI.Text("런처 설정", 19)); brandText.Children.Add(UI.Text("파일 · 폴더 · 이미지 · 메모", 11, UI.Muted)); brand.Children.Add(brandText); header.Children.Add(brand);
         var commands = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 15, 0) }; Grid.SetColumn(commands, 1);
         var add = UI.Button("＋ 파일 등록", AddFiles); add.Background = UI.Brush("#285D67"); commands.Children.Add(add);
-        commands.Children.Add(UI.Button("＋ 폴더", AddFolder)); commands.Children.Add(UI.Button("···", ShowSettings));
+        commands.Children.Add(UI.Button("＋ 폴더", AddFolder)); commands.Children.Add(UI.Button("배경 꾸미기", CustomizeBackground)); commands.Children.Add(UI.Button("···", ShowSettings));
         commands.Children.Add(UI.Button("×", Close)); header.Children.Add(commands); outer.Children.Add(header);
 
         var body = new Grid(); Grid.SetRow(body, 1); body.ColumnDefinitions.Add(new() { Width = new GridLength(186) }); body.ColumnDefinitions.Add(new()); outer.Children.Add(body);
         var nav = new DockPanel { Background = UI.Brush("#131D2A") };
         var navLabel = UI.Text("COLLECTIONS", 10, UI.Muted); navLabel.Margin = new Thickness(19, 26, 0, 15); DockPanel.SetDock(navLabel, Dock.Top); nav.Children.Add(navLabel);
-        var navHelp = UI.Text("우클릭으로 편집 · 이동\n파일을 끌어다 놓아 등록", 11, UI.Muted); navHelp.Margin = new Thickness(19, 15, 15, 22); DockPanel.SetDock(navHelp, Dock.Bottom); nav.Children.Add(navHelp);
+        var navHelp = UI.Text("폴더로 드래그해서 분류\n상위 경로로 드래그해 꺼내기", 11, UI.Muted); navHelp.Margin = new Thickness(19, 15, 15, 22); DockPanel.SetDock(navHelp, Dock.Bottom); nav.Children.Add(navHelp);
         nav.Children.Add(new ScrollViewer { Content = sidebar, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled }); body.Children.Add(nav);
 
         var main = new Grid { Margin = new Thickness(24, 20, 18, 12) }; Grid.SetColumn(main, 1); main.RowDefinitions.Add(new() { Height = GridLength.Auto }); main.RowDefinitions.Add(new() { Height = GridLength.Auto }); main.RowDefinitions.Add(new()); body.Children.Add(main);
@@ -104,8 +113,8 @@ public sealed class LibraryWindow : Window
         empty.Children.Add(UI.Button("파일 등록하기", AddFiles)); content.Children.Add(empty); main.Children.Add(content);
         footer.Margin = new Thickness(22, 11, 22, 12); Grid.SetRow(footer, 2); outer.Children.Add(footer);
         AllowDrop = true;
-        DragOver += (_, e) => { e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; };
-        Drop += (_, e) => { if (e.Data.GetData(DataFormats.FileDrop) is string[] paths) RegisterPaths(paths); };
+        DragOver += (_, e) => { e.Effects = e.Data.GetDataPresent(EntryDragFormat) ? DragDropEffects.Move : e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; };
+        Drop += (_, e) => { if (e.Data.GetDataPresent(EntryDragFormat) && e.Data.GetData(EntryDragFormat) is string[] ids) DropEntries(ids, current); else if (e.Data.GetData(DataFormats.FileDrop) is string[] paths) RegisterPaths(paths); e.Handled = true; };
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.Escape) { if (search.Text.Length > 0) search.Clear(); else if (current != null) Navigate(library.Find(current)?.ParentId); else Hide(); e.Handled = true; }
@@ -125,6 +134,7 @@ public sealed class LibraryWindow : Window
     {
         sidebar.Children.Clear();
         var root = UI.Button("▦  라이브러리", () => Navigate(null)); root.HorizontalContentAlignment = HorizontalAlignment.Left;
+        SetupDropTarget(root, null);
         root.Margin = new Thickness(10, 0, 10, 7); root.Background = current == null ? UI.Brush("#254B57") : Brushes.Transparent; sidebar.Children.Add(root);
         void AddBranch(string? parent, int depth)
         {
@@ -134,13 +144,16 @@ public sealed class LibraryWindow : Window
                 button.Content = new TextBlock { Text = "▸  " + folder.Name, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = library.Trail(folder.Id) };
                 button.Margin = new Thickness(10 + Math.Min(depth * 10, 50), 0, 10, 3); button.Padding = new Thickness(10, 10, 8, 10);
                 button.Background = current == folder.Id ? UI.Brush("#254B57") : Brushes.Transparent; button.ContextMenu = EntryMenu(folder);
+                SetupDropTarget(button, folder.Id);
                 sidebar.Children.Add(button); AddBranch(folder.Id, depth + 1);
             }
         }
         AddBranch(null, 0);
         crumbs.Children.Clear();
         var back = UI.Button("‹", () => Navigate(library.Find(current)?.ParentId)); back.IsEnabled = current != null; back.Padding = new Thickness(10, 4, 10, 4); crumbs.Children.Add(back);
+        SetupDropTarget(back, library.Find(current)?.ParentId);
         var home = UI.Button("라이브러리", () => Navigate(null)); home.Background = Brushes.Transparent; home.Padding = new Thickness(8, 4, 8, 4); crumbs.Children.Add(home);
+        SetupDropTarget(home, null);
         var chain = new List<Entry>(); var cursor = library.Find(current);
         while (cursor != null) { chain.Insert(0, cursor); cursor = library.Find(cursor.ParentId); }
         // The full breadcrumb is available as a tooltip when the hierarchy grows.
@@ -148,6 +161,7 @@ public sealed class LibraryWindow : Window
         {
             var separator = UI.Text("/", 12, UI.Muted); separator.VerticalAlignment = VerticalAlignment.Center; crumbs.Children.Add(separator);
             var b = UI.Button(folder.Name.Length > 15 ? folder.Name[..15] + "…" : folder.Name, () => Navigate(folder.Id)); b.Padding = new Thickness(8, 4, 8, 4); b.Background = Brushes.Transparent; b.ToolTip = library.Trail(folder.Id); crumbs.Children.Add(b);
+            SetupDropTarget(b, folder.Id);
         }
         RenderCards();
     }
@@ -168,7 +182,7 @@ public sealed class LibraryWindow : Window
         subtitle.Text = query.Length > 0 ? $"전체 라이브러리에서 {list.Count}개 항목" : $"{list.Count(x => x.IsFolder)}개 폴더 · {list.Count(x => !x.IsFolder)}개 바로가기";
         foreach (var e in list)
         {
-            var card = new Button { Width = 148, Height = 160, Margin = new Thickness(0, 0, 12, 12), Padding = new Thickness(12), Background = UI.Panel, ToolTip = e.IsFolder ? library.Trail(e.Id) : e.Target };
+            var card = new Button { Width = 148, Height = 160, Margin = new Thickness(0, 0, 12, 12), Padding = new Thickness(12), Background = UI.Panel, ToolTip = e.IsFolder ? library.Trail(e.Id) : e.Target, Tag = e.Id };
             var stack = new StackPanel();
             var frame = new Border { Width = 70, Height = 70, CornerRadius = new CornerRadius(16), Background = UI.Brush("#213247"), Margin = new Thickness(0, 0, 0, 12) };
             var icon = EntryIcon(e);
@@ -177,14 +191,58 @@ public sealed class LibraryWindow : Window
             stack.Children.Add(new TextBlock { Text = e.Name, FontSize = 13, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 124 });
             string label = query.Length > 0 ? library.Trail(e.ParentId) : e.IsFolder ? $"{library.Children(e.Id).Count()}개 항목" : Directory.Exists(e.Target) ? "실제 폴더" : Path.GetExtension(e.Target).TrimStart('.').ToUpperInvariant();
             stack.Children.Add(new TextBlock { Text = label, FontSize = 10, Foreground = UI.Muted, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 6, 0, 0), MaxWidth = 124 });
-            card.Content = stack; card.ContextMenu = EntryMenu(e); card.Click += (_, _) => Open(e);
+            card.Content = stack; card.ContextMenu = EntryMenu(e);
+            bool dragged = false; Point? pressed = null;
+            card.PreviewMouseLeftButtonDown += (_, args) => { pressed = args.GetPosition(this); dragged = false; };
+            card.PreviewMouseMove += (_, args) =>
+            {
+                if (args.LeftButton != MouseButtonState.Pressed || pressed == null) return;
+                var position = args.GetPosition(this);
+                if (Math.Abs(position.X - pressed.Value.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(position.Y - pressed.Value.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+                pressed = null; dragged = true;
+                var data = new DataObject(EntryDragFormat, new[] { e.Id });
+                DragDrop.DoDragDrop(card, data, DragDropEffects.Move); args.Handled = true;
+            };
+            card.Click += (_, _) => { if (!dragged) Open(e); };
+            if (e.IsFolder) SetupDropTarget(card, e.Id);
             card.PreviewKeyDown += (_, args) => { if (args.Key == Key.F2) { Edit(e); args.Handled = true; } if (args.Key == Key.Delete) { Delete(e); args.Handled = true; } };
             cards.Children.Add(card);
         }
         empty.Visibility = list.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         emptyTitle.Text = query.Length > 0 ? "검색 결과가 없습니다" : current == null ? "자주 쓰는 파일을 한곳에" : "이 폴더를 채워 보세요";
         emptyDescription.Text = query.Length > 0 ? "다른 이름이나 경로로 검색해 보세요." : "실행 파일이나 바로가기를 끌어다 놓으세요.\n용도별 폴더로 묶고, 원하는 이미지로 꾸밀 수 있어요.";
-        footer.Text = "클릭하여 실행 · 우클릭하여 편집 / 이동 · Ctrl+F 검색 · Esc 뒤로 / 숨기기";
+        footer.Text = "폴더에 끌어 넣기 · 위쪽 경로나 왼쪽 라이브러리로 끌어 꺼내기 · 우클릭으로 편집";
+    }
+    private void SetupDropTarget(Button target, string? parent)
+    {
+        target.AllowDrop = true; Brush? original = null;
+        void Over(DragEventArgs e)
+        {
+            bool allowed = e.Data.GetDataPresent(EntryDragFormat) && e.Data.GetData(EntryDragFormat) is string[] ids && ids.All(id => library.Find(id) is Entry entry && library.CanMove(entry, parent));
+            bool files = e.Data.GetDataPresent(DataFormats.FileDrop);
+            e.Effects = allowed ? DragDropEffects.Move : files ? DragDropEffects.Copy : DragDropEffects.None;
+            if (allowed || files) { original ??= target.Background; target.Background = UI.Brush("#2F6871"); }
+            e.Handled = true;
+        }
+        target.DragEnter += (_, e) => Over(e); target.DragOver += (_, e) => Over(e);
+        target.DragLeave += (_, _) => { if (original != null) target.Background = original; original = null; };
+        target.Drop += (_, e) =>
+        {
+            e.Handled = true;
+            if (e.Data.GetDataPresent(EntryDragFormat) && e.Data.GetData(EntryDragFormat) is string[] ids) DropEntries(ids, parent);
+            else if (e.Data.GetData(DataFormats.FileDrop) is string[] paths) RegisterInto(paths, parent);
+            if (original != null) target.Background = original; original = null;
+        };
+    }
+    internal bool DropEntries(IEnumerable<string> ids, string? parent)
+    {
+        if (!library.MoveEntries(ids, parent)) return false;
+        Commit(); return true;
+    }
+    private void CustomizeBackground()
+    {
+        var dialog = new BackgroundWindow(store, library) { Owner = this };
+        if (dialog.ShowDialog() == true) { library.Background = dialog.Result!; Commit(); }
     }
     private ContextMenu EntryMenu(Entry e)
     {
@@ -195,14 +253,16 @@ public sealed class LibraryWindow : Window
     }
     private void Commit() { store.Save(library); iconCache.Clear(); Refresh(); }
     internal void RegisterPaths(IEnumerable<string> paths)
+        => RegisterInto(paths, current);
+    private void RegisterInto(IEnumerable<string> paths, string? parent)
     {
         int added = 0;
         foreach (string path in paths)
         {
             if (!File.Exists(path) && !Directory.Exists(path)) continue;
             var full = Path.GetFullPath(path);
-            if (library.Children(current).Any(x => !x.IsFolder && string.Equals(x.Target, full, StringComparison.OrdinalIgnoreCase))) continue;
-            library.Entries.Add(new Entry { Name = Directory.Exists(full) ? new DirectoryInfo(full).Name : Path.GetFileNameWithoutExtension(full), Target = full, ParentId = current }); added++;
+            if (library.Children(parent).Any(x => !x.IsFolder && string.Equals(x.Target, full, StringComparison.OrdinalIgnoreCase))) continue;
+            library.Entries.Add(new Entry { Name = Directory.Exists(full) ? new DirectoryInfo(full).Name : Path.GetFileNameWithoutExtension(full), Target = full, ParentId = parent }); added++;
         }
         search.Clear(); if (added > 0) Commit();
     }
@@ -254,6 +314,7 @@ public sealed class LibraryWindow : Window
         var menu = new ContextMenu();
         var hide = new MenuItem { Header = "실행 후 런처 숨기기", IsCheckable = true, IsChecked = library.HideAfterLaunch };
         hide.Click += (_, _) => { library.HideAfterLaunch = hide.IsChecked; Commit(); }; menu.Items.Add(hide);
+        menu.Items.Add(UI.Menu("런처 배경 꾸미기…", CustomizeBackground));
         menu.Items.Add(UI.Menu("파일 경로 / 링크 직접 등록…", () =>
         {
             var dialog = new EditorWindow(store, new Entry { Name = "새 바로가기", ParentId = current }) { Owner = this };

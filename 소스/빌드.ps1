@@ -1,4 +1,5 @@
 $ErrorActionPreference = 'Stop'
+$taskBuildOutput = $args | Select-Object -First 1
 $env:DOTNET_CLI_HOME = Join-Path $PSScriptRoot '..\중간파일\dotnet-home'
 $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
@@ -19,6 +20,7 @@ $core = Get-ChildItem (Join-Path $dotnetRoot 'packs\Microsoft.NETCore.App.Ref') 
 $desktop = Get-ChildItem (Join-Path $dotnetRoot 'packs\Microsoft.WindowsDesktop.App.Ref') -Directory | Where-Object Name -like '6.*' | Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
 $appHostPack = Get-ChildItem (Join-Path $dotnetRoot 'packs\Microsoft.NETCore.App.Host.win-x64') -Directory | Where-Object Name -like '6.*' | Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
 $outDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\실행파일'))
+if ($taskBuildOutput) { $outDir = [IO.Path]::GetFullPath($taskBuildOutput) }
 $middleDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\중간파일'))
 New-Item -ItemType Directory -Force -Path $outDir,$middleDir | Out-Null
 $globalUsings = Join-Path $middleDir 'GlobalUsings.cs'
@@ -30,6 +32,7 @@ global using System.Threading;
 '@ | Set-Content -LiteralPath $globalUsings -Encoding utf8
 $rsp = @('/nostdlib+','/target:winexe','/langversion:10','/nullable:enable','/optimize+','/debug:portable',('/out:"' + (Join-Path $outDir 'DeckLauncher.dll') + '"'),('/win32icon:"' + (Join-Path $PSScriptRoot 'launcher.ico') + '"'))
 $references = @{}
+$rsp += '/win32manifest:"' + (Join-Path $PSScriptRoot 'app.manifest') + '"'
 foreach ($pack in @($core,$desktop)) { foreach ($dll in Get-ChildItem (Join-Path $pack.FullName 'ref\net6.0') -Filter '*.dll') { $references[$dll.Name] = $dll.FullName } }
 foreach ($reference in $references.Values) { $rsp += '/reference:"' + $reference + '"' }
 foreach ($file in Get-ChildItem $PSScriptRoot -Filter '*.cs') { $rsp += '"' + $file.FullName + '"' }
@@ -44,3 +47,4 @@ Add-Type -Path (Join-Path $sdk.FullName 'Microsoft.NET.HostModel.dll')
 {"runtimeOptions":{"tfm":"net6.0","frameworks":[{"name":"Microsoft.NETCore.App","version":"6.0.36"},{"name":"Microsoft.WindowsDesktop.App","version":"6.0.36"}]}}
 '@ | Set-Content -LiteralPath (Join-Path $outDir 'DeckLauncher.runtimeconfig.json') -Encoding utf8
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'launcher.ico') -Destination (Join-Path $outDir 'launcher.ico') -Force
+if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'Fonts')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Fonts') -Destination $outDir -Recurse -Force }
