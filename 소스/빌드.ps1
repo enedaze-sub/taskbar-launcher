@@ -33,6 +33,9 @@ global using System.Threading;
 $rsp = @('/nostdlib+','/target:winexe','/langversion:10','/nullable:enable','/optimize+','/debug:portable',('/out:"' + (Join-Path $outDir 'DeckLauncher.dll') + '"'),('/win32icon:"' + (Join-Path $PSScriptRoot 'launcher.ico') + '"'))
 $references = @{}
 $rsp += '/win32manifest:"' + (Join-Path $PSScriptRoot 'app.manifest') + '"'
+# Keep local folder names (user name, desktop path) out of the DLL's debug info.
+$rsp += '/deterministic+'
+$rsp += '/pathmap:"' + $PSScriptRoot.TrimEnd('\') + '=소스","' + $outDir.TrimEnd('\') + '=실행파일","' + $middleDir.TrimEnd('\') + '=중간파일"'
 foreach ($pack in @($core,$desktop)) { foreach ($dll in Get-ChildItem (Join-Path $pack.FullName 'ref\net6.0') -Filter '*.dll') { $references[$dll.Name] = $dll.FullName } }
 foreach ($reference in $references.Values) { $rsp += '/reference:"' + $reference + '"' }
 foreach ($file in Get-ChildItem $PSScriptRoot -Filter '*.cs') { $rsp += '"' + $file.FullName + '"' }
