@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -25,7 +25,7 @@ public sealed class ThemeSettings
     public static bool ValidColor(string value) => value != null && System.Text.RegularExpressions.Regex.IsMatch(value, "^#[0-9a-fA-F]{6}$");
     public void Validate()
     {
-        if (new[] { Background, Surface, Accent, Text }.Any(x => !ValidColor(x)) || Slots < 5 || Slots > 9 || !double.IsFinite(IconSize) || IconSize < 28 || IconSize > 48 || !double.IsFinite(Radius) || Radius < 280 || Radius > 315 || !double.IsFinite(Gap) || Gap < .3 || Gap > 2.5 || Frame is not ("rounded" or "circle" or "minimal") || Design is not ("classic" or "modern" or "cat" or "neon" or "glass" or "paper")) throw new InvalidDataException("테마의 색상 또는 배치 값이 올바르지 않습니다.");
+        if (new[] { Background, Surface, Accent, Text }.Any(x => !ValidColor(x)) || Slots < 5 || Slots > 9 || !double.IsFinite(IconSize) || IconSize < 28 || IconSize > 48 || !double.IsFinite(Radius) || Radius < 280 || Radius > 315 || !double.IsFinite(Gap) || Gap < .3 || Gap > 2.5 || Frame is not ("rounded" or "circle" or "minimal") || Design is not ("classic" or "modern" or "cat" or "neon" or "glass" or "paper" or "space")) throw new InvalidDataException("테마의 색상 또는 배치 값이 올바르지 않습니다.");
     }
     internal Brush B(string color) => UI.Brush(color);
     internal Brush Blend(string first, string second, double amount)
@@ -33,11 +33,14 @@ public sealed class ThemeSettings
         var a = (Color)ColorConverter.ConvertFromString(first); var b = (Color)ColorConverter.ConvertFromString(second);
         return new SolidColorBrush(Color.FromRgb((byte)(a.R + (b.R - a.R) * amount), (byte)(a.G + (b.G - a.G) * amount), (byte)(a.B + (b.B - a.B) * amount)));
     }
+    /// <summary>The six launcher designs, each with its own recommended palette and layout values.</summary>
     public static IReadOnlyList<ThemeSettings> DesignPresets => new[] {
-        new ThemeSettings {Name="모던 도크",Design="modern",Background="#F3F5F9",Surface="#FFFFFF",Accent="#326AF4",Text="#27364A",Slots=7,IconSize=38},
-        new ThemeSettings {Name="고양이 포켓",Design="cat",Background="#FFF2E2",Surface="#F8DBC7",Accent="#BE7183",Text="#684A42",Slots=6},
-        new ThemeSettings {Name="네온 노드",Design="neon",Background="#100F23",Surface="#24203E",Accent="#49F4E6",Text="#F8FAFF",Frame="circle"},
-        new ThemeSettings {Name="카드 보드",Design="paper",Background="#F6F0E5",Surface="#FFFCF5",Accent="#A56C36",Text="#4B3B2C",Slots=8,IconSize=36}
+        new ThemeSettings {Name="기본 부채꼴",Design="classic"},
+        new ThemeSettings {Name="냥냥 포켓",Design="cat",Background="#FFF5EC",Surface="#FFE3D3",Accent="#F2879B",Text="#6A4A44",Frame="circle",Slots=6},
+        new ThemeSettings {Name="사이버 HUD",Design="neon",Background="#0A0F1F",Surface="#16223D",Accent="#35F0FF",Text="#E8FBFF",Frame="circle"},
+        new ThemeSettings {Name="다이어리 스크랩",Design="paper",Background="#F3ECDA",Surface="#FFFDF5",Accent="#E0786A",Text="#4A3B31",Slots=8,IconSize=36},
+        new ThemeSettings {Name="글래스 도크",Design="modern",Background="#E7EEF8",Surface="#FFFFFF",Accent="#4F74F7",Text="#1E2940",Slots=7,IconSize=40},
+        new ThemeSettings {Name="별빛 궤도",Design="space",Background="#100C2A",Surface="#2B2360",Accent="#FFD36E",Text="#F4EFFF",Frame="circle"}
     };
     public static IReadOnlyList<ThemeSettings> Presets => new[] {
         new ThemeSettings(),
@@ -45,10 +48,11 @@ public sealed class ThemeSettings
         new ThemeSettings {Name="딸기 밀크",Background="#F4E6EC",Surface="#EAD2DF",Accent="#AC3C6C",Text="#542A40",Gap=1.3},
         new ThemeSettings {Name="바닐라 라테",Background="#EEE6D5",Surface="#DDD1B9",Accent="#80552B",Text="#443526",Frame="minimal",Slots=6,IconSize=42},
         new ThemeSettings {Name="네온 오빗",Background="#151523",Surface="#282737",Accent="#D9EE77",Text="#F4F5E9",Frame="minimal",Slots=8,IconSize=36},
-        new ThemeSettings {Name="클라우드 화이트",Background="#F3F5F9",Surface="#FFFFFF",Accent="#326AF4",Text="#27364A"},
-        new ThemeSettings {Name="피치 크림",Background="#FFF2E2",Surface="#F8DBC7",Accent="#BE7183",Text="#684A42"},
-        new ThemeSettings {Name="네온 민트",Background="#100F23",Surface="#24203E",Accent="#49F4E6",Text="#F8FAFF"},
-        new ThemeSettings {Name="크림 페이퍼",Background="#F6F0E5",Surface="#FFFCF5",Accent="#A56C36",Text="#4B3B2C"}
+        new ThemeSettings {Name="클라우드 화이트",Background="#E7EEF8",Surface="#FFFFFF",Accent="#4F74F7",Text="#1E2940"},
+        new ThemeSettings {Name="피치 크림",Background="#FFF5EC",Surface="#FFE3D3",Accent="#F2879B",Text="#6A4A44"},
+        new ThemeSettings {Name="네온 민트",Background="#0A0F1F",Surface="#16223D",Accent="#35F0FF",Text="#E8FBFF"},
+        new ThemeSettings {Name="크림 페이퍼",Background="#F3ECDA",Surface="#FFFDF5",Accent="#E0786A",Text="#4A3B31"},
+        new ThemeSettings {Name="별빛 보라",Background="#100C2A",Surface="#2B2360",Accent="#FFD36E",Text="#F4EFFF"}
     };
 }
 

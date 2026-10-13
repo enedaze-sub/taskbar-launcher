@@ -72,7 +72,7 @@ public sealed partial class LauncherWindow : Window
         AllowsTransparency = true; Background = Brushes.Transparent; Topmost = false;
         if (File.Exists(System.IO.Path.Combine(AppContext.BaseDirectory, "launcher.ico"))) Icon = Native.LoadImage(System.IO.Path.Combine(AppContext.BaseDirectory, "launcher.ico"));
         var view = new Viewbox { Child = fan, Stretch = Stretch.Uniform }; root.Children.Add(view); Content = root;
-        fan.RenderTransform = unfolding; fan.RenderTransformOrigin = new Point(.5, 1); fan.IsHitTestVisible = !previewMode;
+        fan.RenderTransform = unfolding; fan.RenderTransformOrigin = new Point(.5, 1); fan.ClipToBounds = true; fan.IsHitTestVisible = !previewMode;
         if (previewMode) KeyboardNavigation.SetTabNavigation(fan, KeyboardNavigationMode.None);
         SourceInitialized += (_, _) => { Native.ConfigureTaskbar(this);if(!previewMode && ShowActivated)clickWatcher=new OutsideClickWatcher(point=>Dispatcher.BeginInvoke(new Action(()=>HandleScreenClick(point)))); };
         Closed+=(_,_)=>clickWatcher?.Dispose();
@@ -177,7 +177,7 @@ public sealed partial class LauncherWindow : Window
         fan.Children.Clear(); slots.Clear(); FontFamily=LFont; title.FontFamily=LFont; title.Foreground=T(Theme.Text);note.Foreground=MutedTone;tag.Foreground=T(Theme.Accent);pageLabel.Foreground=MutedTone;note.Visibility=Theme.ShowNotes?Visibility.Visible:Visibility.Collapsed;page = Math.Clamp(page, 0, PageCount - 1);
         // The window outside this shape remains transparent and does not intercept clicks.
         var shell = new WpfPath { Data = ShellGeometry(), Fill = Tone(.2), Stroke = AccentTone(.25), StrokeThickness = 1, Effect = Shadow(26, .48) };
-        StyleShell(shell); fan.Children.Add(shell);
+        StyleShell(shell); DrawBackdrop(); fan.Children.Add(shell);
         string? imagePath = backgroundOverride ?? (library.Background.ImageFile != null ? store.IconPath(library.Background.ImageFile) : null);
         if (backgroundKey != imagePath)
         {
@@ -213,9 +213,9 @@ public sealed partial class LauncherWindow : Window
         var inner = new WpfPath { Data = HubGeometry(), Fill = Tone(.14), Stroke = AccentTone(.18), StrokeThickness = 1, IsHitTestVisible = false }; fan.Children.Add(inner);
         if (hasBackground) inner.Fill.Opacity = .65; StyleHub(inner); DrawHubDecorations();
         var info = new StackPanel { Width = InfoBox.Width, HorizontalAlignment = HorizontalAlignment.Center, IsHitTestVisible = false };
-        tag.Visibility=AlternateLayout && Theme.Design!="neon"?Visibility.Collapsed:Visibility.Visible;tag.TextAlignment = TextAlignment.Center; tag.Margin = new Thickness(0, 0, 0, 7);
+        tag.Visibility=TileLayout?Visibility.Collapsed:Visibility.Visible;tag.TextAlignment = TextAlignment.Center; tag.Margin = new Thickness(0, 0, 0, 7);
         title.TextAlignment = TextAlignment.Center; title.TextTrimming = TextTrimming.CharacterEllipsis; title.TextWrapping = TextWrapping.NoWrap; title.FontWeight = FontWeights.Medium;
-        note.TextAlignment = TextAlignment.Center; note.TextWrapping = TextWrapping.Wrap; note.Margin = new Thickness(8, AlternateLayout && Theme.Design!="neon" ? 6 : 9, 8, 0); note.FontFamily=LFont;note.FontSize=15;note.MaxHeight=48;note.LineHeight=24;note.LineStackingStrategy=LineStackingStrategy.BlockLineHeight; note.TextTrimming = TextTrimming.CharacterEllipsis;
+        note.TextAlignment = TextAlignment.Center; note.TextWrapping = TextWrapping.Wrap; note.Margin = new Thickness(8, TileLayout ? 6 : 9, 8, 0); note.FontFamily=LFont;note.FontSize=15;note.MaxHeight=48;note.LineHeight=24;note.LineStackingStrategy=LineStackingStrategy.BlockLineHeight; note.TextTrimming = TextTrimming.CharacterEllipsis;
         info.Children.Add(tag); info.Children.Add(title); info.Children.Add(note); Place(fan, info, InfoBox.X, InfoBox.Y);
         var back = RoundButton(current == null ? "\uE80F" : "\uE72B", current == null ? "처음으로" : "상위 폴더", () => Navigate(library.Find(current)?.ParentId)); back.Opacity = current == null ? .5 : 1;
         back.ToolTip = current == null ? "라이브러리 · 여기로 끌어 꺼내기" : "상위 폴더 · 여기로 끌어 꺼내기";
@@ -244,16 +244,17 @@ public sealed partial class LauncherWindow : Window
             ToolTipService.SetInitialShowDelay(button, 650);
         }
         var contents = new Canvas { Width = 920, Height = 454 };
-        var shape = new WpfPath { Data = geometry, Fill = Tone(1), Stroke = AccentTone(.2), StrokeThickness = .8 };
-        if (backgroundImage != null) shape.Fill.Opacity = .35;
-        StyleSlot(shape); contents.Children.Add(shape);
+        int slotIndex = slots.Count;
+        var shape = new WpfPath { Data = geometry };
+        StyleSlot(shape, slotIndex); contents.Children.Add(shape);
         string? slotPath = slotOverrides.GetValueOrDefault(entry.Id) ?? (entry.Background.ImageFile != null ? store.IconPath(entry.Background.ImageFile) : null);
         if (slotPath != null)
         {
             try { if(!slotImages.TryGetValue(slotPath,out var bitmap))slotImages[slotPath]=bitmap=(BitmapSource)Native.LoadImage(slotPath,1024);contents.Children.Add(BackgroundTools.Layer(bitmap,entry.Background,geometry)); } catch { }
         }
         var point = IconPoint(geometry,angle); var bounds = geometry.Bounds;
-        bool tiles = AlternateLayout && Theme.Design!="neon";
+        bool tiles = TileLayout;
+        DrawSlotDecorations(contents, geometry, point, slotIndex, entry.IsFolder);
         // Tile layouts size the frame from the slot so the icon always has even padding inside it.
         double frameSize = !tiles ? 60 : Theme.Design=="cat" ? Math.Min(46, bounds.Height-12) : Theme.Design=="paper" && bounds.Height<80 ? 34 : 50;
         var iconFrame = new Border { Width = frameSize, Height = frameSize, CornerRadius = new CornerRadius(Theme.Frame=="circle"?frameSize/2:frameSize*.28), Background = Theme.Frame=="minimal"?Brushes.Transparent:AccentTone(.12), BorderBrush = Theme.Frame=="minimal"?Brushes.Transparent:AccentTone(.3), BorderThickness = new Thickness(.7), Effect = Shadow(12, .28), RenderTransformOrigin = new Point(.5, .5), RenderTransform = new ScaleTransform(1, 1), IsHitTestVisible = false };
@@ -276,7 +277,7 @@ public sealed partial class LauncherWindow : Window
             Place(contents, iconFrame, bounds.X + (bounds.Width - frameSize) / 2, top);
             nameLeft = bounds.X + 6; nameWidth = bounds.Width - 12; nameTop = top + frameSize + gap;
         }
-        else if (Theme.Design=="neon")
+        else if (OrbitLayout)
         {
             // Centered on the orbit circle (drawn 3px above the polar point); the name sits in its pill below.
             Place(contents, iconFrame, point.X - 30, point.Y - 33);
@@ -287,7 +288,6 @@ public sealed partial class LauncherWindow : Window
             Place(contents, iconFrame, point.X - 30, point.Y - 38);
             nameLeft = point.X - 47.5; nameWidth = 95; nameTop = point.Y + 30;
         }
-        DrawSlotDecorations(contents,point);
         var name = new TextBlock { Text = entry.Name, FontSize = 14, FontFamily = LFont, TextAlignment = nameAlign == HorizontalAlignment.Left ? TextAlignment.Left : TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = T(Theme.Text), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = nameAlign, IsHitTestVisible = false };
         var nameBox = new Grid { Width = nameWidth, Height = labelHeight, IsHitTestVisible = false, Visibility = Theme.ShowLabels ? Visibility.Visible : Visibility.Collapsed };
         if (slotPath != null)
@@ -305,15 +305,13 @@ public sealed partial class LauncherWindow : Window
             var badgeBox = new Grid { Width = 40, Height = 18, IsHitTestVisible = false }; badgeBox.Children.Add(badge);
             if (Theme.Design=="cat") Place(contents, badgeBox, bounds.Right - 12 - 40, bounds.Y + (bounds.Height - 18) / 2);
             else if (tiles) Place(contents, badgeBox, bounds.Right - 8 - 40, bounds.Y + 7);
-            else Place(contents, badgeBox, point.X + 12, point.Y + (Theme.Design=="neon" ? 8 : 3));
+            else Place(contents, badgeBox, point.X + 12, point.Y + (OrbitLayout ? 8 : 3));
         }
         button.Content = contents;
         void Highlight(bool active)
         {
-            shape.Fill = active ? AccentTone(.32) : SlotFill();
-            if (backgroundImage != null) shape.Fill.Opacity = active ? .68 : .35;
-            shape.Stroke = active ? T(Theme.Accent) : AccentTone(.2); shape.StrokeThickness = active ? 1.8 : .8;
-            var transform = (ScaleTransform)iconFrame.RenderTransform; var animation = new DoubleAnimation(active ? 1.09 : 1, TimeSpan.FromMilliseconds(130)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+            StyleSlot(shape, slotIndex, active);
+            var transform = (ScaleTransform)iconFrame.RenderTransform; var animation = new DoubleAnimation(active ? HoverScale : 1, TimeSpan.FromMilliseconds(130)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
             transform.BeginAnimation(ScaleTransform.ScaleXProperty, animation); transform.BeginAnimation(ScaleTransform.ScaleYProperty, animation);
             if (active) ShowNote(entry); else DefaultNote();
         }
@@ -350,9 +348,9 @@ public sealed partial class LauncherWindow : Window
     }
     private void DefaultNote()
     {
-        tag.Text = current == null ? Theme.Design switch { "cat" => "H E L L O ,   H U M A N", "neon" => "R E A D Y   T O   L A U N C H", "modern" => "M Y   W O R K S P A C E", "glass" => "Y O U R   S P A C E", _ => "Q U I C K   L A U N C H" } : "F O L D E R";
+        tag.Text = current == null ? Theme.Design switch { "cat" => "H E L L O ,   H U M A N", "neon" => "R E A D Y   T O   L A U N C H", "space" => "S T A R   L A U N C H", "modern" => "M Y   W O R K S P A C E", "glass" => "Y O U R   S P A C E", _ => "Q U I C K   L A U N C H" } : "F O L D E R";
         title.Text = library.Find(current)?.Name ?? "나의 바로가기";
-        note.Text = library.Children(current).Any() ? AlternateLayout && Theme.Design!="neon" ? "자주 쓰는 것들을 한 번에. 실행할 아이콘을 선택하세요." : "자주 쓰는 것들을 한 번에.\n실행할 아이콘을 선택하세요." : "아직 등록된 항목이 없어요.\n아래 설정 버튼에서 추가해 주세요.";
+        note.Text = library.Children(current).Any() ? TileLayout ? "자주 쓰는 것들을 한 번에. 실행할 아이콘을 선택하세요." : "자주 쓰는 것들을 한 번에.\n실행할 아이콘을 선택하세요." : "아직 등록된 항목이 없어요.\n아래 설정 버튼에서 추가해 주세요.";
     }
     internal void ShowNote(Entry entry)
     {
@@ -372,7 +370,7 @@ public sealed partial class LauncherWindow : Window
         dialStart=((dialStart+direction)%total+total)%total;dialMode=true;page=dialStart/Theme.Slots;Refresh();
         if(!previewMode && ShowActivated)
         {
-            if(AlternateLayout && Theme.Design!="neon"){var slide=new TranslateTransform(direction*35,0);dial.RenderTransform=slide;slide.BeginAnimation(TranslateTransform.XProperty,new DoubleAnimation(0,TimeSpan.FromMilliseconds(180)));return;}
+            if(TileLayout || Theme.Design=="space"){var slide=new TranslateTransform(direction*35,0);dial.RenderTransform=slide;slide.BeginAnimation(TranslateTransform.XProperty,new DoubleAnimation(0,TimeSpan.FromMilliseconds(180)));return;}
             var rotation=new RotateTransform(-direction*dialSpan,460,453);dial.RenderTransform=rotation;
             rotation.BeginAnimation(RotateTransform.AngleProperty,new DoubleAnimation(0,TimeSpan.FromMilliseconds(210)){EasingFunction=new CubicEase{EasingMode=EasingMode.EaseOut}});
             dial.BeginAnimation(OpacityProperty,new DoubleAnimation(.65,1,TimeSpan.FromMilliseconds(170)));
