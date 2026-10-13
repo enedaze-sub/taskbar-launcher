@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -26,16 +26,18 @@ public sealed class BackgroundSettings
 internal static class BackgroundTools
 {
     internal static readonly Rect Bounds = new(70, 63, 780, 390);
-    public static Rect ImageRect(double pixelWidth, double pixelHeight, BackgroundSettings settings)
+    public static Rect ImageRect(double pixelWidth, double pixelHeight, BackgroundSettings settings) => ImageRect(pixelWidth, pixelHeight, settings, Bounds);
+    public static Rect ImageRect(double pixelWidth, double pixelHeight, BackgroundSettings settings, Rect bounds)
     {
-        double scale = Math.Max(Bounds.Width / pixelWidth, Bounds.Height / pixelHeight) * settings.Zoom;
+        double scale = Math.Max(bounds.Width / pixelWidth, bounds.Height / pixelHeight) * settings.Zoom;
         double width = pixelWidth * scale, height = pixelHeight * scale;
-        return new Rect(Bounds.X + (Bounds.Width - width) / 2 + settings.OffsetX * (width - Bounds.Width) / 2, Bounds.Y + (Bounds.Height - height) / 2 + settings.OffsetY * (height - Bounds.Height) / 2, width, height);
+        return new Rect(bounds.X + (bounds.Width - width) / 2 + settings.OffsetX * (width - bounds.Width) / 2, bounds.Y + (bounds.Height - height) / 2 + settings.OffsetY * (height - bounds.Height) / 2, width, height);
     }
-    public static Canvas Layer(BitmapSource image, BackgroundSettings settings)
+    public static Canvas Layer(BitmapSource image, BackgroundSettings settings, Geometry? clip = null)
     {
-        var rect = ImageRect(image.PixelWidth, image.PixelHeight, settings);
-        var layer = new Canvas { Width = 920, Height = 454, Clip = LauncherWindow.Sector(.01, 390, -180, 0), IsHitTestVisible = false };
+        var geometry = clip ?? LauncherWindow.Sector(.01, 390, -180, 0);
+        var rect = ImageRect(image.PixelWidth, image.PixelHeight, settings, clip?.Bounds ?? Bounds);
+        var layer = new Canvas { Width = 920, Height = 454, Clip = geometry, IsHitTestVisible = false };
         var visual = new Image { Source = image, Width = rect.Width, Height = rect.Height, Stretch = Stretch.Fill };
         Canvas.SetLeft(visual, rect.X); Canvas.SetTop(visual, rect.Y); layer.Children.Add(visual);
         layer.Children.Add(new System.Windows.Shapes.Rectangle { Width = 920, Height = 454, Fill = UI.Brush("#071421"), Opacity = settings.Darkness });
@@ -46,6 +48,8 @@ internal static class BackgroundTools
 public sealed class BackgroundWindow : Window
 {
     private readonly Store store;
+    private readonly string? entryId;
+    private readonly Rect cropBounds;
     private readonly BackgroundSettings draft;
     private readonly LauncherWindow preview;
     private readonly Border previewArea;
@@ -62,17 +66,21 @@ public sealed class BackgroundWindow : Window
     public BackgroundSettings? Result { get; private set; }
     internal BackgroundSettings Draft => draft;
 
-    public BackgroundWindow(Store store, Library library)
+    public BackgroundWindow(Store store, Library library, Entry? entry = null)
     {
-        this.store = store; draft = library.Background.Copy(); UI.Theme(this);
-        Title = "런처 배경 꾸미기"; Width = 1020; Height = 790; MinWidth = 740; MinHeight = 680; Topmost = false; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        this.store = store; entryId = entry?.Id; draft = (entry?.Background ?? library.Background).Copy(); UI.Theme(this);
+        Title = entry == null ? "런처 배경 꾸미기" : entry.Name + " · 칸 배경 꾸미기"; Width = 1020; Height = 790; MinWidth = 740; MinHeight = 680; Topmost = false; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var area = SystemParameters.WorkArea; Width = Math.Min(Width, area.Width - 24); Height = Math.Min(Height, area.Height - 30);
         var main = new Grid { Margin = new Thickness(24) }; main.RowDefinitions.Add(new() { Height = GridLength.Auto }); main.RowDefinitions.Add(new()); main.RowDefinitions.Add(new() { Height = GridLength.Auto }); main.RowDefinitions.Add(new() { Height = GridLength.Auto }); Content = main;
         var header = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
         var commands = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center }; DockPanel.SetDock(commands, Dock.Right);
         commands.Children.Add(UI.Button("이미지 선택…", Choose)); commands.Children.Add(UI.Button("기본 배경", ResetImage)); header.Children.Add(commands);
-        var labels = new StackPanel(); var title = UI.Text("런처 배경 꾸미기", 26); title.FontFamily = UI.DisplayFont; labels.Children.Add(title); labels.Children.Add(UI.Text("이미지를 드래그해 위치를 맞추고, 휠로 확대해 보세요.", 12, UI.Muted)); header.Children.Add(labels); main.Children.Add(header);
-        preview = new LauncherWindow(store, new Library { Entries = library.Entries, Background = draft }, true);
+        var labels = new StackPanel(); var title = UI.Text(entry == null ? "런처 배경 꾸미기" : "이 칸의 배경 꾸미기", 26); title.FontFamily = UI.DisplayFont; labels.Children.Add(title); labels.Children.Add(UI.Text("이미지를 드래그해 위치를 맞추고, 휠로 확대해 보세요.", 12, UI.Muted)); header.Children.Add(labels); main.Children.Add(header);
+        var copy = System.Text.Json.JsonSerializer.Deserialize<Library>(System.Text.Json.JsonSerializer.Serialize(library))!;
+        if (entry == null) copy.Background = draft; else copy.Find(entry.Id)!.Background = draft;
+        preview = new LauncherWindow(store, copy, true);
+        if (entry != null) preview.PreviewEntry(entry);
+        cropBounds = entry != null ? preview.SlotGeometry(entry.Id)?.Bounds ?? BackgroundTools.Bounds : BackgroundTools.Bounds;
         previewArea = new Border { Background = UI.Brush("#233245"), BorderBrush = UI.Brush("#42546C"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18), Padding = new Thickness(12, 0, 12, 0), Child = preview.DetachPreview(), Cursor = Cursors.SizeAll };
         Grid.SetRow(previewArea, 1); main.Children.Add(previewArea);
         var controls = new Grid { Margin = new Thickness(0, 14, 0, 0) }; controls.ColumnDefinitions.Add(new()); controls.ColumnDefinitions.Add(new()); controls.RowDefinitions.Add(new()); controls.RowDefinitions.Add(new()); Grid.SetRow(controls, 2);
@@ -87,9 +95,9 @@ public sealed class BackgroundWindow : Window
         previewArea.MouseMove += (_, e) =>
         {
             if (dragStart == null || image == null || e.LeftButton != MouseButtonState.Pressed) return;
-            var point = e.GetPosition(previewArea); var rect = BackgroundTools.ImageRect(image.PixelWidth, image.PixelHeight, draft);
+            var point = e.GetPosition(previewArea); var rect = BackgroundTools.ImageRect(image.PixelWidth, image.PixelHeight, draft, cropBounds);
             double scale = Math.Min((previewArea.ActualWidth - 24) / 920, previewArea.ActualHeight / 454);
-            double dx = (rect.Width - BackgroundTools.Bounds.Width) / 2, dy = (rect.Height - BackgroundTools.Bounds.Height) / 2;
+            double dx = (rect.Width - cropBounds.Width) / 2, dy = (rect.Height - cropBounds.Height) / 2;
             horizontal.Value = dx > .01 ? Math.Clamp(initialX + (point.X - dragStart.Value.X) / scale / dx, -1, 1) : 0;
             vertical.Value = dy > .01 ? Math.Clamp(initialY + (point.Y - dragStart.Value.Y) / scale / dy, -1, 1) : 0;
             e.Handled = true;
@@ -111,7 +119,7 @@ public sealed class BackgroundWindow : Window
     internal void SelectImage(string path, bool newImage = true)
     {
         image = (BitmapSource)Native.LoadImage(path, 1920); selectedPath = path; newlySelected = newImage;
-        preview.UpdateBackground(draft, path); Update();
+        preview.UpdateBackground(draft, path, entryId); Update();
     }
     private void Choose()
     {
@@ -123,7 +131,7 @@ public sealed class BackgroundWindow : Window
     private void ResetImage() { selectedPath = null; newlySelected = false; image = null; draft.ImageFile = null; ResetPosition(); Update(); }
     private void Update()
     {
-        preview.UpdateBackground(draft, selectedPath);
+        preview.UpdateBackground(draft, selectedPath, entryId);
         status.Text = image == null ? "기본 배경 · 이미지가 아직 선택되지 않았어요" : $"{Path.GetFileName(selectedPath)}   ·   {draft.Zoom:0.00}배";
         zoom.IsEnabled = horizontal.IsEnabled = vertical.IsEnabled = darkness.IsEnabled = image != null;
     }

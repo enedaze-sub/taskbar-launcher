@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.IO.Compression;
 using System.Text.Json;
 
@@ -15,6 +15,7 @@ public sealed class Entry
     public string WorkingDirectory { get; set; } = "";
     public string Note { get; set; } = "";
     public string? IconFile { get; set; }
+    public BackgroundSettings Background { get; set; } = new();
 }
 
 public sealed class Library
@@ -23,14 +24,15 @@ public sealed class Library
     public int UiRevision { get; set; }
     public bool HideAfterLaunch { get; set; }
     public BackgroundSettings Background { get; set; } = new();
+    public ThemeSettings Theme { get; set; } = new();
     public List<Entry> Entries { get; set; } = new();
 
     public IEnumerable<Entry> Children(string? parent) => Entries.Where(e => e.ParentId == parent);
     public Entry? Find(string? id) => Entries.FirstOrDefault(e => e.Id == id);
     public bool ApplyUiUpdate()
     {
-        if (UiRevision >= 3) return false;
-        HideAfterLaunch = false; UiRevision = 3; return true;
+        if (UiRevision >= 4) return false;
+        if (UiRevision < 3) HideAfterLaunch = false; UiRevision = 4; return true;
     }
     public bool MoveEntries(IEnumerable<string> ids, string? parent)
     {
@@ -40,7 +42,18 @@ public sealed class Library
         foreach (var entry in entries) { changed |= entry!.ParentId != parent; entry.ParentId = parent; }
         return changed;
     }
-    public IEnumerable<string> ImageFiles() => Entries.Select(e => e.IconFile).Append(Background.ImageFile).Where(x => x != null).Cast<string>().Distinct();
+    public bool ReorderEntries(IEnumerable<string> ids, string anchorId, bool after)
+    {
+        var anchor = Find(anchorId); var selected = ids.Distinct().Select(Find).ToList();
+        if (anchor == null || selected.Count == 0 || selected.Any(e => e == null || e == anchor || !CanMove(e, anchor.ParentId))) return false;
+        var before = Entries.Select(e => (e.Id, e.ParentId)).ToArray();
+        var moving = Entries.Where(e => selected.Contains(e)).ToList();
+        Entries.RemoveAll(e => moving.Contains(e));
+        foreach (var e in moving) e.ParentId = anchor.ParentId;
+        Entries.InsertRange(Entries.IndexOf(anchor) + (after ? 1 : 0), moving);
+        return !before.SequenceEqual(Entries.Select(e => (e.Id, e.ParentId)));
+    }
+    public IEnumerable<string> ImageFiles() => Entries.SelectMany(e => new[] { e.IconFile, e.Background.ImageFile }).Append(Background.ImageFile).Where(x => x != null).Cast<string>().Distinct();
     public string Trail(string? parent)
     {
         var names = new List<string>();
@@ -74,11 +87,12 @@ public sealed class Library
     }
     public void Validate()
     {
-        Background ??= new(); Background.Validate();
+        Background ??= new(); Background.Validate(); Theme ??= new(); Theme.Validate();
         if (Version != 1) throw new InvalidDataException("지원하지 않는 라이브러리 버전입니다.");
         var ids = new HashSet<string>();
         foreach (var e in Entries)
         {
+            e.Background ??= new(); e.Background.Validate();
             if (string.IsNullOrWhiteSpace(e.Id) || !ids.Add(e.Id)) throw new InvalidDataException("항목 ID가 중복되었거나 비어 있습니다.");
             if (string.IsNullOrWhiteSpace(e.Name)) throw new InvalidDataException("이름이 없는 항목이 있습니다.");
             if (e.IconFile != null && (Path.GetFileName(e.IconFile) != e.IconFile || e.IconFile.Contains(':'))) throw new InvalidDataException("잘못된 아이콘 경로입니다.");
@@ -161,6 +175,7 @@ public sealed class Store
             File.WriteAllBytes(IconPath(replacement), backup.Icons[image]); names[image] = replacement;
         }
         foreach (var e in backup.Library.Entries.Where(e => e.IconFile != null)) e.IconFile = names[e.IconFile!];
+        foreach (var e in backup.Library.Entries.Where(e => e.Background.ImageFile != null)) e.Background.ImageFile = names[e.Background.ImageFile!];
         if (backup.Library.Background.ImageFile != null) backup.Library.Background.ImageFile = names[backup.Library.Background.ImageFile];
         Save(backup.Library); return backup.Library;
     }

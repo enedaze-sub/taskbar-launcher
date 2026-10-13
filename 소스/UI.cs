@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Windows;
@@ -30,7 +30,7 @@ internal static class UI
 <ResourceDictionary xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'>
  <Style TargetType='Button'>
   <Setter Property='Foreground' Value='#EAF2FC'/><Setter Property='Background' Value='#223247'/><Setter Property='BorderThickness' Value='0'/><Setter Property='Padding' Value='14,9'/><Setter Property='Cursor' Value='Hand'/><Setter Property='Margin' Value='3'/><Setter Property='HorizontalContentAlignment' Value='Center'/>
-  <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='Button'><Border x:Name='box' Background='{TemplateBinding Background}' CornerRadius='9' Padding='{TemplateBinding Padding}'><ContentPresenter HorizontalAlignment='{TemplateBinding HorizontalContentAlignment}' VerticalAlignment='Center'/></Border><ControlTemplate.Triggers><Trigger Property='IsMouseOver' Value='True'><Setter TargetName='box' Property='Background' Value='#344E68'/></Trigger><Trigger Property='IsKeyboardFocused' Value='True'><Setter TargetName='box' Property='BorderBrush' Value='#6DE0D4'/><Setter TargetName='box' Property='BorderThickness' Value='2'/></Trigger><Trigger Property='IsEnabled' Value='False'><Setter Property='Opacity' Value='0.4'/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='Button'><Border x:Name='box' Background='{TemplateBinding Background}' CornerRadius='9' BorderBrush='{TemplateBinding BorderBrush}' BorderThickness='{TemplateBinding BorderThickness}' Padding='{TemplateBinding Padding}'><ContentPresenter HorizontalAlignment='{TemplateBinding HorizontalContentAlignment}' VerticalAlignment='Center'/></Border><ControlTemplate.Triggers><Trigger Property='IsMouseOver' Value='True'><Setter TargetName='box' Property='Opacity' Value='0.85'/></Trigger><Trigger Property='IsKeyboardFocused' Value='True'><Setter TargetName='box' Property='BorderBrush' Value='#6DE0D4'/><Setter TargetName='box' Property='BorderThickness' Value='2'/></Trigger><Trigger Property='IsEnabled' Value='False'><Setter Property='Opacity' Value='0.4'/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
  </Style>
  <Style TargetType='TextBox'><Setter Property='Foreground' Value='#EAF2FC'/><Setter Property='Background' Value='#202D3F'/><Setter Property='BorderBrush' Value='#3B526D'/><Setter Property='Padding' Value='10,8'/><Setter Property='CaretBrush' Value='#6DE0D4'/><Setter Property='SelectionBrush' Value='#396B81'/><Setter Property='VerticalContentAlignment' Value='Center'/></Style>
  <Style TargetType='CheckBox'><Setter Property='Foreground' Value='#EAF2FC'/><Setter Property='Margin' Value='5,10'/></Style>
@@ -91,7 +91,7 @@ public sealed class LibraryWindow : Window
         var brandText = new StackPanel { Margin = new Thickness(12, 0, 0, 0) }; brandText.Children.Add(UI.Text("런처 설정", 19)); brandText.Children.Add(UI.Text("파일 · 폴더 · 이미지 · 메모", 11, UI.Muted)); brand.Children.Add(brandText); header.Children.Add(brand);
         var commands = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 15, 0) }; Grid.SetColumn(commands, 1);
         var add = UI.Button("＋ 파일 등록", AddFiles); add.Background = UI.Brush("#285D67"); commands.Children.Add(add);
-        commands.Children.Add(UI.Button("＋ 폴더", AddFolder)); commands.Children.Add(UI.Button("배경 꾸미기", CustomizeBackground)); commands.Children.Add(UI.Button("···", ShowSettings));
+        commands.Children.Add(UI.Button("＋ 폴더", AddFolder)); commands.Children.Add(UI.Button("꾸미기", CustomizeAppearance)); commands.Children.Add(UI.Button("···", ShowSettings));
         commands.Children.Add(UI.Button("×", Close)); header.Children.Add(commands); outer.Children.Add(header);
 
         var body = new Grid(); Grid.SetRow(body, 1); body.ColumnDefinitions.Add(new() { Width = new GridLength(186) }); body.ColumnDefinitions.Add(new()); outer.Children.Add(body);
@@ -182,7 +182,7 @@ public sealed class LibraryWindow : Window
         subtitle.Text = query.Length > 0 ? $"전체 라이브러리에서 {list.Count}개 항목" : $"{list.Count(x => x.IsFolder)}개 폴더 · {list.Count(x => !x.IsFolder)}개 바로가기";
         foreach (var e in list)
         {
-            var card = new Button { Width = 148, Height = 160, Margin = new Thickness(0, 0, 12, 12), Padding = new Thickness(12), Background = UI.Panel, ToolTip = e.IsFolder ? library.Trail(e.Id) : e.Target, Tag = e.Id };
+            var card = new Button { Width = 148, Height = 160, Margin = new Thickness(0, 0, 12, 12), Padding = new Thickness(12), Background = UI.Brush(library.Theme.Surface), Foreground = UI.Brush(library.Theme.Text), ToolTip = e.IsFolder ? library.Trail(e.Id) : e.Target, Tag = e.Id };
             var stack = new StackPanel();
             var frame = new Border { Width = 70, Height = 70, CornerRadius = new CornerRadius(16), Background = UI.Brush("#213247"), Margin = new Thickness(0, 0, 0, 12) };
             var icon = EntryIcon(e);
@@ -191,7 +191,12 @@ public sealed class LibraryWindow : Window
             stack.Children.Add(new TextBlock { Text = e.Name, FontSize = 13, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 124 });
             string label = query.Length > 0 ? library.Trail(e.ParentId) : e.IsFolder ? $"{library.Children(e.Id).Count()}개 항목" : Directory.Exists(e.Target) ? "실제 폴더" : Path.GetExtension(e.Target).TrimStart('.').ToUpperInvariant();
             stack.Children.Add(new TextBlock { Text = label, FontSize = 10, Foreground = UI.Muted, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 6, 0, 0), MaxWidth = 124 });
-            card.Content = stack; card.ContextMenu = EntryMenu(e);
+            var cardContent = new Grid();
+            if (e.Background.ImageFile != null)
+            {
+                try { var bitmap = Native.LoadImage(store.IconPath(e.Background.ImageFile), 512); var image = new Image { Source=bitmap, Stretch=Stretch.UniformToFill, Opacity=1-e.Background.Darkness }; var crop = BackgroundTools.ImageRect(((System.Windows.Media.Imaging.BitmapSource)bitmap).PixelWidth,((System.Windows.Media.Imaging.BitmapSource)bitmap).PixelHeight,e.Background,new Rect(0,0,124,136)); image.Width=crop.Width;image.Height=crop.Height;var canvas=new Canvas { Width=124,Height=136,Clip=new RectangleGeometry(new Rect(0,0,124,136),9,9) };Canvas.SetLeft(image,crop.X);Canvas.SetTop(image,crop.Y);canvas.Children.Add(image);cardContent.Children.Add(canvas); } catch { }
+            }
+            cardContent.Children.Add(stack); card.Content = cardContent; card.ContextMenu = EntryMenu(e);
             bool dragged = false; Point? pressed = null;
             card.PreviewMouseLeftButtonDown += (_, args) => { pressed = args.GetPosition(this); dragged = false; };
             card.PreviewMouseMove += (_, args) =>
@@ -204,14 +209,41 @@ public sealed class LibraryWindow : Window
                 DragDrop.DoDragDrop(card, data, DragDropEffects.Move); args.Handled = true;
             };
             card.Click += (_, _) => { if (!dragged) Open(e); };
-            if (e.IsFolder) SetupDropTarget(card, e.Id);
+            SetupCardDropTarget(card, e);
             card.PreviewKeyDown += (_, args) => { if (args.Key == Key.F2) { Edit(e); args.Handled = true; } if (args.Key == Key.Delete) { Delete(e); args.Handled = true; } };
             cards.Children.Add(card);
         }
         empty.Visibility = list.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         emptyTitle.Text = query.Length > 0 ? "검색 결과가 없습니다" : current == null ? "자주 쓰는 파일을 한곳에" : "이 폴더를 채워 보세요";
         emptyDescription.Text = query.Length > 0 ? "다른 이름이나 경로로 검색해 보세요." : "실행 파일이나 바로가기를 끌어다 놓으세요.\n용도별 폴더로 묶고, 원하는 이미지로 꾸밀 수 있어요.";
-        footer.Text = "폴더에 끌어 넣기 · 위쪽 경로나 왼쪽 라이브러리로 끌어 꺼내기 · 우클릭으로 편집";
+        footer.Text = "카드 가장자리: 순서 변경 · 폴더 가운데: 안으로 넣기 · 위쪽 경로: 꺼내기 · 우클릭: 칸 배경";
+    }
+    private void SetupCardDropTarget(Button target, Entry anchor)
+    {
+        target.AllowDrop = true;
+        (bool Into, bool After) Location(DragEventArgs e) { double x=e.GetPosition(target).X; return (anchor.IsFolder && x >= 30 && x <= target.ActualWidth-30, x > target.ActualWidth/2); }
+        void Clear() { target.BorderThickness=new Thickness(0); target.Background=UI.Brush(library.Theme.Surface); target.ToolTip=anchor.IsFolder?library.Trail(anchor.Id):anchor.Target; }
+        void Over(DragEventArgs e)
+        {
+            var location=Location(e); var ids=e.Data.GetData(EntryDragFormat) as string[];
+            bool allowed=ids != null && ids.All(id=>library.Find(id) is Entry moving && moving!=anchor && library.CanMove(moving,location.Into?anchor.Id:anchor.ParentId));
+            bool files=anchor.IsFolder && e.Data.GetDataPresent(DataFormats.FileDrop);
+            e.Effects=allowed?DragDropEffects.Move:files?DragDropEffects.Copy:DragDropEffects.None; e.Handled=true;
+            target.BorderBrush=UI.Brush(library.Theme.Accent); target.BorderThickness=allowed ? location.Into?new Thickness(2):location.After?new Thickness(0,0,5,0):new Thickness(5,0,0,0) : new Thickness(0);
+            target.Background=allowed?library.Theme.Blend(library.Theme.Surface,library.Theme.Accent,.24):UI.Brush(library.Theme.Surface);
+            target.ToolTip=location.Into?"폴더 안으로 넣기":location.After?"이 카드 뒤로 이동":"이 카드 앞으로 이동";
+        }
+        target.DragOver+=(_,e)=>Over(e); target.DragEnter+=(_,e)=>Over(e);target.DragLeave+=(_,_)=>Clear();
+        target.Drop+=(_,e)=>
+        {
+            e.Handled=true;var location=Location(e);Clear();
+            if(e.Data.GetData(EntryDragFormat) is string[] ids)
+            {
+                bool changed=location.Into?library.MoveEntries(ids,anchor.Id):library.ReorderEntries(ids,anchor.Id,location.After);
+                if(changed)Commit();
+            }
+            else if(anchor.IsFolder && e.Data.GetData(DataFormats.FileDrop) is string[] paths)RegisterInto(paths,anchor.Id);
+        };
     }
     private void SetupDropTarget(Button target, string? parent)
     {
@@ -239,6 +271,20 @@ public sealed class LibraryWindow : Window
         if (!library.MoveEntries(ids, parent)) return false;
         Commit(); return true;
     }
+    private void CustomizeAppearance()
+    {
+        var menu = new ContextMenu(); menu.Items.Add(UI.Menu("테마 / 색상 / 배치…", CustomizeTheme)); menu.Items.Add(UI.Menu("전체 배경 이미지…", CustomizeBackground)); menu.IsOpen = true;
+    }
+    private void CustomizeTheme()
+    {
+        var dialog = new ThemeWindow(store, library) { Owner = this };
+        if (dialog.ShowDialog() == true) { library.Theme = dialog.Result!; Commit(); }
+    }
+    private void CustomizeSlot(Entry entry)
+    {
+        var dialog = new BackgroundWindow(store, library, entry) { Owner = this };
+        if (dialog.ShowDialog() == true) { entry.Background = dialog.Result!; Commit(); }
+    }
     private void CustomizeBackground()
     {
         var dialog = new BackgroundWindow(store, library) { Owner = this };
@@ -247,7 +293,7 @@ public sealed class LibraryWindow : Window
     private ContextMenu EntryMenu(Entry e)
     {
         var menu = new ContextMenu(); menu.Items.Add(UI.Menu(e.IsFolder ? "폴더 열기" : "실행", () => Open(e)));
-        menu.Items.Add(UI.Menu("편집 / 아이콘 변경", () => Edit(e))); menu.Items.Add(UI.Menu("폴더로 이동…", () => Move(e)));
+        menu.Items.Add(UI.Menu("편집 / 아이콘 변경", () => Edit(e))); menu.Items.Add(UI.Menu("이 칸의 배경 이미지…", () => CustomizeSlot(e))); menu.Items.Add(UI.Menu("폴더로 이동…", () => Move(e)));
         menu.Items.Add(new Separator()); menu.Items.Add(UI.Menu("앞으로 이동", () => Reorder(e, -1))); menu.Items.Add(UI.Menu("뒤로 이동", () => Reorder(e, 1)));
         menu.Items.Add(new Separator()); menu.Items.Add(UI.Menu("등록 해제", () => Delete(e))); return menu;
     }
@@ -314,7 +360,7 @@ public sealed class LibraryWindow : Window
         var menu = new ContextMenu();
         var hide = new MenuItem { Header = "실행 후 런처 숨기기", IsCheckable = true, IsChecked = library.HideAfterLaunch };
         hide.Click += (_, _) => { library.HideAfterLaunch = hide.IsChecked; Commit(); }; menu.Items.Add(hide);
-        menu.Items.Add(UI.Menu("런처 배경 꾸미기…", CustomizeBackground));
+        menu.Items.Add(UI.Menu("테마 / 색상 / 배치…", CustomizeTheme)); menu.Items.Add(UI.Menu("런처 배경 꾸미기…", CustomizeBackground));
         menu.Items.Add(UI.Menu("파일 경로 / 링크 직접 등록…", () =>
         {
             var dialog = new EditorWindow(store, new Entry { Name = "새 바로가기", ParentId = current }) { Owner = this };
@@ -407,7 +453,7 @@ public sealed class EditorWindow : Window
         if (!original.IsFolder && path.Length == 0) { MessageBox.Show(this, "실행할 파일 경로나 링크를 입력해 주세요."); target.Focus(); return; }
         try
         {
-            Result = new Entry { Id = original.Id, ParentId = original.ParentId, IsFolder = original.IsFolder, Name = name.Text.Trim(), Target = path, Arguments = arguments.Text, WorkingDirectory = working.Text.Trim().Trim('"'), Note = note.Text.Trim(), IconFile = pickedIcon != null ? store.CopyIcon(pickedIcon) : existingIcon };
+            Result = new Entry { Id = original.Id, ParentId = original.ParentId, IsFolder = original.IsFolder, Name = name.Text.Trim(), Target = path, Arguments = arguments.Text, WorkingDirectory = working.Text.Trim().Trim('"'), Note = note.Text.Trim(), IconFile = pickedIcon != null ? store.CopyIcon(pickedIcon) : existingIcon, Background = original.Background.Copy() };
             DialogResult = true;
         }
         catch (Exception ex) { UI.Error(ex); }

@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -47,10 +47,14 @@ internal static class SelfTests
             item.IconFile = copied;
             string backgroundSource = Path.Combine(store.DirectoryPath, "sample-background.png"); Preview.CreateBackground(backgroundSource);
             lib.Background = new BackgroundSettings { ImageFile = store.CopyIcon(backgroundSource), Zoom = 1.45, OffsetX = .3, OffsetY = -.45, Darkness = .32 };
+            item.Background=new BackgroundSettings { ImageFile=store.CopyIcon(backgroundSource),Zoom=1.7,OffsetX=-.4,Darkness=.25 };
+            lib.Theme=ThemeSettings.Presets[0].Copy();lib.Theme.Name="테스트 테마";lib.Theme.Accent="#D7AFEF";
             var backupFile = Path.Combine(store.DirectoryPath, "backup.zip"); store.Backup(backupFile, lib);
             var backup = Store.ReadBackup(backupFile);
             var restored = store.Restore(backup);
             Check(restored.Find(item.Id)?.IconFile != copied && Native.LoadImage(store.IconPath(restored.Find(item.Id)!.IconFile!)) != null && restored.Trail(c.Id) == lib.Trail(c.Id), "ZIP backup restores hierarchy and custom images without overwriting old icons");
+            Check(restored.Find(item.Id)!.Background.ImageFile!=item.Background.ImageFile && File.Exists(store.IconPath(restored.Find(item.Id)!.Background.ImageFile!)) && restored.Find(item.Id)!.Background.OffsetX==-.4,"ZIP backup restores per-slot images and independent crop settings");
+            Check(restored.Theme.Accent=="#D7AFEF" && restored.Theme.Name=="테스트 테마","ZIP backup preserves custom theme settings");
             Check(restored.Find(item.Id)?.Note == item.Note, "ZIP backup preserves user notes");
             Check(restored.Background.ImageFile != lib.Background.ImageFile && File.Exists(store.IconPath(restored.Background.ImageFile!)) && restored.Background.Zoom == lib.Background.Zoom && restored.Background.OffsetY == lib.Background.OffsetY, "ZIP backup restores background image and crop settings");
             Check(lib.ApplyUiUpdate() && !lib.HideAfterLaunch && !lib.ApplyUiUpdate() && lib.Entries.Count == 4, "UI migration changes preferences once while preserving registered entries");
@@ -143,6 +147,56 @@ internal static class SelfTests
             radial.ChangePage(2); Check(radial.CurrentPage == 2 && radial.RenderedSlots == 4, "Last page displays remaining entries");
             radial.Navigate(null); radial.Navigate(c.Id); Check(radial.CurrentPage == 2, "Returning to a folder restores its page");
             radial.ChangePage(99); Check(radial.CurrentPage == 2, "Page navigation remains within bounds");
+            // Wheel shifts one item at a time, including reverse wrapping and folder state.
+            radial.ChangePage(-99);var ordered=lib.Children(c.Id).Select(e=>e.Id).ToList();
+            radial.RotateDial(-1);Check(radial.DialStart==ordered.Count-1 && radial.DisplayedIds[0]==ordered[^1] && radial.RenderedSlots==7,"Reverse dial wraps to the last entry while keeping seven visible slots");
+            radial.RotateDial(1);Check(radial.DialStart==0 && radial.DisplayedIds.SequenceEqual(ordered.Take(7)),"Forward dial wraps back to the first entry");
+            radial.RaiseEvent(new System.Windows.Input.MouseWheelEventArgs(System.Windows.Input.Mouse.PrimaryDevice,0,-120){RoutedEvent=UIElement.MouseWheelEvent});
+            Check(radial.DialStart==1 && radial.DisplayedIds[0]==ordered[1],"Actual mouse wheel event rotates by one item rather than a page");
+            radial.Navigate(null);radial.Navigate(c.Id);Check(radial.DialStart==1,"Folder navigation restores its dial position");
+            radial.ChangePage(1);Check(radial.CurrentPage==1 && radial.DisplayedIds[0]==ordered[7],"Page buttons remain independent after dial scrolling");
+            // Actual card edges reorder the saved list, and folder centers still move entries.
+            win.Show();win.Navigate(c.Id);win.UpdateLayout();var firstCard=Find<Button>(win).First(x=>x.Tag as string==item.Id);
+            string lastId=lib.Children(c.Id).Last().Id;
+            RaiseDrop(firstCard,lastId,new Point(5,80));Check(lib.Children(c.Id).First().Id==lastId && store.Load().Children(c.Id).First().Id==lastId,"Dragging onto a card's leading edge reorders both saved and rendered entries");
+            radial.Navigate(c.Id);Check(radial.DisplayedIds.Contains(lastId) || radial.CurrentPage>0,"Fan reloads the same ordered library");
+            win.Navigate(null);win.UpdateLayout();var rootFolder=Find<Button>(win).First(x=>x.Tag as string==a.Id);RaiseDrop(rootFolder,lastId);
+            Check(lib.Find(lastId)!.ParentId==a.Id,"Folder center remains a move-into target after adding edge reordering");
+            var beforeOrder=lib.Entries.Select(e=>e.Id).ToArray();Check(!lib.ReorderEntries(new[]{a.Id},c.Id,false) && beforeOrder.SequenceEqual(lib.Entries.Select(e=>e.Id)),"Reordering rejects moving a folder into descendants atomically");
+            win.Hide();radial.Navigate(null);radial.UpdateLayout();
+            radial.Slot(a.Id)!.RaiseEvent(new System.Windows.Input.MouseEventArgs(System.Windows.Input.Mouse.PrimaryDevice,0){RoutedEvent=UIElement.MouseEnterEvent});
+            PumpUntil(()=>radial.PreviewDepth==1);Check(radial.PreviewDepth==1,"Actual mouse-enter event opens the adjacent folder panel without clicking");
+            radial.Slot(a.Id)!.RaiseEvent(new System.Windows.Input.MouseEventArgs(System.Windows.Input.Mouse.PrimaryDevice,0){RoutedEvent=UIElement.MouseLeaveEvent});PumpUntil(()=>radial.PreviewDepth==0);
+            Check(radial.PreviewDepth==0,"Leaving the folder and its panel dismisses it after a transit delay");
+            radial.ShowFolderPreview(a,radial.Slot(a.Id)!);var quick=radial.FolderPreview!;quick.UpdateLayout();
+            Check(radial.PreviewDepth==1 && !quick.Topmost && quick.Owner==radial && Find<Button>(quick).Any(x=>x.Tag as string==b.Id),"Hover folder panel shows its children beside the fan with normal window stacking");
+            var nestedQuick=Find<Button>(quick).First(x=>x.Tag as string==b.Id);radial.ShowFolderPreview(b,nestedQuick,1);
+            Check(radial.PreviewDepth==2 && Find<Button>(radial.FolderPreview!).Any(x=>x.Tag as string==c.Id),"Nested hover folders open a second adjacent panel");
+            var nestedFolder=Find<Button>(radial.FolderPreview!).First(x=>x.Tag as string==c.Id);nestedFolder.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(radial.PreviewDepth==0 && radial.CurrentFolder==c.Id,"Choosing a hover panel item opens it directly and closes the panels");
+            radial.Navigate(null);radial.ShowFolderPreview(a,radial.Slot(a.Id)!);radial.Hide();Check(radial.PreviewDepth==0,"Hiding the launcher also closes its hover panels");radial.Show();
+            foreach(var preset in ThemeSettings.Presets){preset.Validate();radial.UpdateTheme(preset.Copy());Check(radial.library.Theme.Name==preset.Name && radial.PageCount==Math.Max(1,(lib.Children(null).Count()+preset.Slots-1)/preset.Slots),"Preset palette and layout apply: "+preset.Name);}
+            var slotRect=BackgroundTools.ImageRect(900,600,new BackgroundSettings {Zoom=2.8,OffsetX=1,OffsetY=-1},sector.Bounds);
+            Check(slotRect.Contains(sector.Bounds),"Per-slot images cover their curved slot at extreme crop offsets");
+            var themeEditor=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};themeEditor.Show();themeEditor.UsePreset(ThemeSettings.Presets[2]);
+            Check(lib.Theme.Name=="네온 오빗" && themeEditor.Draft.Name=="딸기 밀크","Theme preview edits are isolated until applying");
+            var colorBox=Find<TextBox>(themeEditor).First();colorBox.Text="#234567";Check(themeEditor.Draft.Background=="#234567" && themeEditor.Draft.Name=="내 커스텀 테마","Custom hex colors update the actual theme draft");
+            Find<Slider>(themeEditor).First(x=>x.Minimum==5).Value=9;Check(themeEditor.Draft.Slots==9,"Custom display layout supports nine slots");themeEditor.Close();
+            var invalidEditor=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};
+            bool invalidStayedOpen=false;
+            app.Dispatcher.BeginInvoke(new Action(()=>{Find<TextBox>(invalidEditor).First().Text="bad";Find<Button>(invalidEditor).First(x=>x.Content as string=="적용").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));invalidStayedOpen=invalidEditor.IsVisible && invalidEditor.Result==null;Find<Button>(invalidEditor).First(x=>x.Content as string=="취소").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));}));
+            invalidEditor.ShowDialog();Check(invalidStayedOpen,"Invalid custom color input keeps the dialog open and does not apply a theme");
+            var applyTheme=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};
+            app.Dispatcher.BeginInvoke(new Action(()=>{applyTheme.UsePreset(ThemeSettings.Presets[4]);Find<Button>(applyTheme).First(x=>x.Content as string=="적용").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));}));
+            Check(applyTheme.ShowDialog()==true && applyTheme.Result!.Name=="오션 블루","Theme Apply button commits a selected preset");
+            var slotEditor=new BackgroundWindow(store,lib,item){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};slotEditor.SelectImage(backgroundSource);var slotOldZoom=item.Background.Zoom;slotEditor.Draft.Zoom=2.4;Check(item.Background.Zoom==slotOldZoom,"Per-slot background preview leaves the entry unchanged until applying");
+            app.Dispatcher.BeginInvoke(new Action(()=>{Find<Slider>(slotEditor).First(x=>x.Minimum==1).Value=2.6;Find<Button>(slotEditor).First(x=>x.Content as string=="적용").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));}));
+            Check(slotEditor.ShowDialog()==true && slotEditor.Result!.Zoom==2.6 && slotEditor.Result.ImageFile!=item.Background.ImageFile && lib.Background.Zoom==oldZoom,"Per-slot Apply saves an independent image and crop without changing the overall background");
+            var entryEditor=new EditorWindow(store,item){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};
+            app.Dispatcher.BeginInvoke(new Action(()=>Find<Button>(entryEditor).First(x=>x.Content as string=="저장").RaiseEvent(new RoutedEventArgs(Button.ClickEvent))));
+            Check(entryEditor.ShowDialog()==true && entryEditor.Result!.Background.ImageFile==item.Background.ImageFile && entryEditor.Result.Background.Zoom==item.Background.Zoom,"Editing an entry retains its per-slot background");
+            var stable=new Library{UiRevision=3,HideAfterLaunch=true};Check(stable.ApplyUiUpdate() && stable.HideAfterLaunch && stable.UiRevision==4,"Revision four preserves the user's existing launch preference");
+            bool invalidTheme=false;try{new ThemeSettings{Accent="not-a-color"}.Validate();}catch(InvalidDataException){invalidTheme=true;}Check(invalidTheme,"Imported theme values are validated");
             bool displayFont = UI.DisplayFont.GetTypefaces().Any(x => x.TryGetGlyphTypeface(out var g) && g.FamilyNames.Values.Any(n => n == "Jua"));
             bool bodyFont = UI.RoundedFont.GetTypefaces().Any(x => x.TryGetGlyphTypeface(out var g) && g.FamilyNames.Values.Any(n => n == "Gowun Dodum"));
             Check(displayFont && bodyFont, "Bundled rounded Jua and Gowun Dodum fonts resolve to actual typefaces");
@@ -150,6 +204,11 @@ internal static class SelfTests
             log.Add("ALL CHECKS PASSED"); File.WriteAllLines(Path.Combine(output, "검증결과.txt"), log); return 0;
         }
         catch (Exception ex) { log.Add(ex.ToString()); File.WriteAllLines(Path.Combine(output, "검증결과.txt"), log); return 1; }
+    }
+    private static void PumpUntil(Func<bool> condition)
+    {
+        var frame=new DispatcherFrame();var watch=System.Diagnostics.Stopwatch.StartNew();var timer=new DispatcherTimer {Interval=TimeSpan.FromMilliseconds(15)};
+        timer.Tick+=(_,_)=>{if(condition() || watch.ElapsedMilliseconds>1000)frame.Continue=false;};timer.Start();Dispatcher.PushFrame(frame);timer.Stop();
     }
     private static IEnumerable<T> Find<T>(DependencyObject obj) where T : DependencyObject
     {
@@ -159,10 +218,13 @@ internal static class SelfTests
             foreach (var x in Find<T>(child)) yield return x;
         }
     }
-    private static void RaiseDrop(Button target, string id)
+    private static void RaiseDrop(Button target, string id, Point? position = null)
     {
+        target.UpdateLayout();
+        Point point=position ?? new Point(target.ActualWidth/2,target.ActualHeight/2);
+        if(position==null && target.Width==920 && target.Content is Canvas canvas) {var shape=canvas.Children.OfType<System.Windows.Shapes.Path>().First();var rect=shape.Data.Bounds;point=new Point(rect.X+rect.Width/2,rect.Y+rect.Height/2);}
         var constructor = typeof(DragEventArgs).GetConstructors(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).First();
-        var args = (DragEventArgs)constructor.Invoke(new object[] { new DataObject(LibraryWindow.EntryDragFormat, new[] { id }), DragDropKeyStates.None, DragDropEffects.Move, target, new Point(0, 0) });
+        var args = (DragEventArgs)constructor.Invoke(new object[] { new DataObject(LibraryWindow.EntryDragFormat, new[] { id }), DragDropKeyStates.None, DragDropEffects.Move, target, point });
         args.RoutedEvent = DragDrop.DropEvent; target.RaiseEvent(args);
     }
 }
@@ -183,10 +245,10 @@ internal static class Preview
     internal static void Snapshot(Window window, string path)
     {
         window.UpdateLayout(); var content = (FrameworkElement)window.Content;
-        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(content.ActualWidth), (int)Math.Ceiling(content.ActualHeight), 96, 96, PixelFormats.Pbgra32);
-        var backdrop = new DrawingVisual(); using (var dc = backdrop.RenderOpen()) dc.DrawRectangle(window.Background, null, new Rect(0, 0, content.ActualWidth, content.ActualHeight));
-        bitmap.Render(backdrop);
-        var visual = new DrawingVisual(); using (var dc = visual.RenderOpen()) dc.DrawRectangle(new VisualBrush(content) { Stretch = Stretch.Fill }, null, new Rect(0, 0, content.ActualWidth, content.ActualHeight));
+        double width=content.ActualWidth+content.Margin.Left+content.Margin.Right,height=content.ActualHeight+content.Margin.Top+content.Margin.Bottom;
+        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width),(int)Math.Ceiling(height),96,96,PixelFormats.Pbgra32);
+        var backdrop = new DrawingVisual(); using (var dc = backdrop.RenderOpen()) dc.DrawRectangle(window.Background,null,new Rect(0,0,width,height));bitmap.Render(backdrop);
+        var visual = new DrawingVisual(); using (var dc = visual.RenderOpen()) dc.DrawRectangle(new VisualBrush(content) { Stretch=Stretch.Fill,ViewboxUnits=BrushMappingMode.Absolute,Viewbox=new Rect(content.Margin.Left,content.Margin.Top,content.ActualWidth,content.ActualHeight),AlignmentX=AlignmentX.Left,AlignmentY=AlignmentY.Top },null,new Rect(content.Margin.Left,content.Margin.Top,content.ActualWidth,content.ActualHeight));
         bitmap.Render(visual); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var stream = File.Create(path); encoder.Save(stream);
     }
@@ -224,6 +286,14 @@ internal static class Preview
         win.UpdateBackground(new BackgroundSettings { Darkness = .2, Zoom = 1.35, OffsetX = .2 }, backgroundPath); Snapshot(win, Path.Combine(output, "미리보기-배경.png"));
         var editor = new EditorWindow(store, lib.Entries.First(x => x.Name == "메모장")) { Owner = win, ShowActivated = false, WindowStartupLocation = WindowStartupLocation.Manual, Left = -19000, Top = -19000 };
         editor.Show(); Snapshot(editor, Path.Combine(output, "미리보기-아이콘편집.png")); editor.Close();
+        win.UpdateBackground(new BackgroundSettings(),null);win.Navigate(null);
+        foreach(var preset in ThemeSettings.Presets){win.UpdateTheme(preset.Copy());Snapshot(win,Path.Combine(output,"테마-"+preset.Name+".png"));}
+        lib.Theme=ThemeSettings.Presets[0].Copy();win.UpdateTheme(lib.Theme);win.Navigate(null);win.ShowFolderPreview(work,win.Slot(work.Id)!);Snapshot(win.FolderPreview!,Path.Combine(output,"미리보기-옆폴더.png"));win.CloseFolderPreview();
+        var themeEditor=new ThemeWindow(store,lib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};themeEditor.Show();Snapshot(themeEditor,Path.Combine(output,"미리보기-테마설정.png"));themeEditor.Close();
+        hoverEntry.Background=new BackgroundSettings { ImageFile=store.CopyIcon(backgroundPath),Zoom=1.3,OffsetX=.35,Darkness=.25 };
+        win.UpdateTheme(lib.Theme);Snapshot(win,Path.Combine(output,"미리보기-칸배경.png"));
+        var slotEditor=new BackgroundWindow(store,lib,hoverEntry){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};slotEditor.Show();Snapshot(slotEditor,Path.Combine(output,"미리보기-칸배경설정.png"));slotEditor.Close();
+        win.RotateDial(1);Snapshot(win,Path.Combine(output,"미리보기-휠순환.png"));
         win.Hide(); app.Shutdown(); return 0;
     }
 }
