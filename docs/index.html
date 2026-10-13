@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>작업표시줄 런처 · 소개 영상</title>
+<meta name="description" content="작업표시줄에서 펼쳐지는 Windows 앱 런처 DeckLauncher 소개 영상">
+<style>
+  :root { --bg: #0f1724; --panel: #172235; --text: #eef3fb; --muted: #9fb0c6; --accent: #6de0d4; }
+  @media (prefers-color-scheme: light) { :root { --bg: #f3f6fa; --panel: #ffffff; --text: #1d2a3b; --muted: #5d6c80; --accent: #138a7f; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif; }
+  main { max-width: 1080px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  p { color: var(--muted); margin: 0 0 20px; line-height: 1.6; }
+  video { width: 100%; height: auto; display: block; border-radius: 14px; background: #000; box-shadow: 0 10px 40px rgba(0,0,0,.35); }
+  .links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+  a.button { display: inline-block; padding: 10px 16px; border-radius: 10px; background: var(--panel); color: var(--text); text-decoration: none; font-weight: 600; border: 1px solid rgba(127,127,127,.25); }
+  a.button.primary { background: var(--accent); color: #0b1a1a; border-color: transparent; }
+  small { display: block; color: var(--muted); margin-top: 28px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>작업표시줄 런처 · 소개 영상</h1>
+  <p>런처 펼치기, 폴더 펼침, 런처 설정, 색상 · UI 디자인, 배경 꾸미기를 1분 남짓 보여 줍니다. 런처 바깥 화면은 블러 처리했습니다.</p>
+  <video controls playsinline preload="metadata" poster="poster.png">
+    <source src="소개영상.mp4" type="video/mp4">
+    브라우저가 영상 재생을 지원하지 않습니다. <a href="소개영상.mp4">영상 파일 내려받기</a>
+  </video>
+  <div class="links">
+    <a class="button primary" href="https://github.com/enedaze-sub/taskbar-launcher/releases/latest">최신 버전 내려받기</a>
+    <a class="button" href="https://github.com/enedaze-sub/taskbar-launcher">GitHub 저장소</a>
+  </div>
+  <small>© 2026 enedaze-sub · <a href="https://creativecommons.org/licenses/by-nc/4.0/deed.ko" style="color:inherit">CC BY-NC 4.0</a></small>
+</main>
+</body>
+</html>
