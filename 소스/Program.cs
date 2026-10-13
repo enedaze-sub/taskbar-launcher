@@ -10,7 +10,14 @@ public static class Program
     public static int Main(string[] args)
     {
         if (args.Contains("--self-test")) return SelfTests.Run(args.Last());
-        if (args.Contains("--preview")) return Preview.Run(args.Last());
+        if (args.Contains("--preview"))
+        {
+            // --preview <out> [--clean-pc] [--windows10]: render as it would look on someone else's PC
+            FontCatalog.SimulateNoUserFonts = args.Contains("--clean-pc") || args.Contains("--windows10");
+            FontCatalog.SimulateNoNoto = args.Contains("--windows10");
+            UI.ApplyFonts(new FontSettings());
+            return Preview.Run(args.First(a => !a.StartsWith("--")));
+        }
         if (args.Length >= 3 && args[0] == "--memtest") return MemoryProbe.Run(args[1], args[2], args.Contains("software"));
         using var mutex = new Mutex(true, @"Local\DeckLauncher.6_1sol." + Environment.UserName, out bool first);
         using var signal = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\DeckLauncher.6_1sol.Show." + Environment.UserName);

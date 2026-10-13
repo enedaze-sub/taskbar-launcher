@@ -31,13 +31,15 @@ internal static class FontCatalog
     internal static string BundledFontDirectory => Path.Combine(AppContext.BaseDirectory, "Fonts");
 
     /// <summary>Settings text: Noto Sans KR ships with Windows 11 and has real Medium/SemiBold/Bold weights.</summary>
-    internal static FontFamily DefaultInterface => new("Noto Sans KR, Malgun Gothic, Segoe UI");
+    /// <summary>Preview-only switches that imitate another PC: no fonts installed by the user, and/or no Noto Sans KR (Windows 10).</summary>
+    internal static bool SimulateNoUserFonts, SimulateNoNoto;
+    internal static FontFamily DefaultInterface => new(SimulateNoNoto ? "Malgun Gothic, Segoe UI" : "Noto Sans KR, Malgun Gothic, Segoe UI");
     /// <summary>Launcher text keeps the rounded display look: Cafe24 Ssurround when installed, otherwise bundled Jua.</summary>
     internal static FontFamily DefaultLauncher
     {
         get
         {
-            if (File.Exists(Path.Combine(UserFontDirectory, "Cafe24Ssurround-v2.0.ttf"))) return new FontFamily(new Uri(UserFontDirectory + Path.DirectorySeparatorChar), "./#Cafe24 Ssurround");
+            if (!SimulateNoUserFonts && File.Exists(Path.Combine(UserFontDirectory, "Cafe24Ssurround-v2.0.ttf"))) return new FontFamily(new Uri(UserFontDirectory + Path.DirectorySeparatorChar), "./#Cafe24 Ssurround");
             return Bundled("Jua") ?? new FontFamily("Malgun Gothic");
         }
     }
