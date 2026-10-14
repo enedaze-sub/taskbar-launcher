@@ -34,7 +34,7 @@
 2. `실행파일\DeckLauncher.exe` を実行します。
 3. タスクバーのアイコンを右クリックし、**タスクバーにピン留めする**を選択します。
 
-リリースの **Assets** で **`taskbar-launcher-v8.3.zip`** を選んでください。Windows実行ファイル・ソース・翻訳READMEを含む配布ZIPです。**Source code (zip)** はGitHubが自動生成したソースアーカイブなので、上記の配布ZIPをダウンロードしてください。
+リリースの **Assets** で **`taskbar-launcher-v8.3.zip`** を選んでください。Windows実行ファイル・ソース・翻訳READMEを含む配布ZIPです。
 
 ### 方法2 · gitでインストール
 

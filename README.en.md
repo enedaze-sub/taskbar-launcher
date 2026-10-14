@@ -34,7 +34,7 @@ The video shows opening the launcher and folders, managing shortcuts, choosing c
 2. Run `실행파일\DeckLauncher.exe`.
 3. Right-click the taskbar icon and choose **Pin to taskbar**.
 
-Under **Assets**, choose **`taskbar-launcher-v8.3.zip`**, the Windows distribution ZIP with executables, source, and translated READMEs. **Source code (zip)** is GitHub’s automatically generated source archive; use the distribution ZIP linked above.
+Under **Assets**, choose **`taskbar-launcher-v8.3.zip`**, the Windows distribution ZIP with executables, source, and translated READMEs.
 
 ### Option 2 · Install with git
 

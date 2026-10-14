@@ -34,7 +34,7 @@
 2. 运行 `실행파일\DeckLauncher.exe`。
 3. 右键点击任务栏图标，选择**固定到任务栏**。
 
-在发布页面的 **Assets** 中选择 **`taskbar-launcher-v8.3.zip`**。这是包含Windows可执行文件、源码和翻译README的发行ZIP。**Source code (zip)** 是GitHub自动生成的源码压缩包，请下载上方链接的发行ZIP。
+在发布页面的 **Assets** 中选择 **`taskbar-launcher-v8.3.zip`**。这是包含Windows可执行文件、源码和翻译README的发行ZIP。
 
 ### 方式2 · 使用git安装
 
