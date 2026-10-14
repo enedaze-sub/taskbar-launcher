@@ -30,9 +30,11 @@
 
 ### 방법 1 · ZIP 내려받기
 
-1. [최신 릴리즈](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)에서 `taskbar-launcher-v8.3.zip`을 내려받아 압축을 풉니다.
+1. [최신 릴리즈](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)에서 [`taskbar-launcher-v8.3.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.3/taskbar-launcher-v8.3.zip)을 내려받아 압축을 풉니다.
 2. `실행파일\DeckLauncher.exe`를 실행합니다.
 3. 작업표시줄 아이콘을 우클릭 → **작업 표시줄에 고정**을 선택합니다.
+
+릴리즈의 **Assets**에서 **`taskbar-launcher-v8.3.zip`**을 선택하세요. 이 파일은 Windows 실행파일·소스·번역 README가 포함된 배포 ZIP입니다. **Source code (zip)**은 GitHub가 자동 생성한 소스 압축이므로 위의 배포 ZIP을 내려받으세요.
 
 ### 방법 2 · git으로 설치
 

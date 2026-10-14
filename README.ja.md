@@ -30,9 +30,11 @@
 
 ### 方法1 · ZIPをダウンロード
 
-1. [最新リリース](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)から `taskbar-launcher-v8.3.zip` をダウンロードして展開します。
+1. [最新リリース](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)から [`taskbar-launcher-v8.3.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.3/taskbar-launcher-v8.3.zip) をダウンロードして展開します。
 2. `실행파일\DeckLauncher.exe` を実行します。
 3. タスクバーのアイコンを右クリックし、**タスクバーにピン留めする**を選択します。
+
+リリースの **Assets** で **`taskbar-launcher-v8.3.zip`** を選んでください。Windows実行ファイル・ソース・翻訳READMEを含む配布ZIPです。**Source code (zip)** はGitHubが自動生成したソースアーカイブなので、上記の配布ZIPをダウンロードしてください。
 
 ### 方法2 · gitでインストール
 
