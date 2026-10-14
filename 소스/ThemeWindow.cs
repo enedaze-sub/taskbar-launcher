@@ -48,7 +48,7 @@ public sealed class ThemeWindow : Window
         selectors.Children.Add(new Grid()); BuildSavedSelector();
 
         var body = new Grid(); body.ColumnDefinitions.Add(new()); body.ColumnDefinitions.Add(new() { Width = new GridLength(300) }); Grid.SetRow(body, 2); main.Children.Add(body);
-        preview = new LauncherWindow(store, new Library { Entries = entries, Theme = Draft, Background = library.Background.Copy() }, true);
+        preview = new LauncherWindow(store, new Library { Entries = entries, Theme = Draft, Background = library.Background.Copy(), Appearance = library.Appearance.Copy() }, true);
         var sample = new Grid { Margin = new Thickness(0, 0, 20, 0) }; sample.RowDefinitions.Add(new()); sample.RowDefinitions.Add(new() { Height = GridLength.Auto });
         sample.Children.Add(UI.Res(new Border { CornerRadius = new CornerRadius(18), Padding = new Thickness(8), Child = preview.DetachPreview(this) }, Border.BackgroundProperty, "SkinPanel"));
         var hint = UI.Text("실제 런처 미리보기 · 디자인과 색상은 서로 독립이라 자유롭게 조합할 수 있어요", 12.5, UI.Muted); hint.Margin = new Thickness(10, 12, 0, 4); Grid.SetRow(hint, 1); sample.Children.Add(hint); body.Children.Add(sample);

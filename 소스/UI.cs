@@ -353,9 +353,15 @@ public sealed class LibraryWindow : Window
         var menu = new ActionSheet("화면 꾸미기", "색상과 모양, 글꼴을 내 취향으로", library.Theme);
         menu.Add("\uE790", "색상 · UI 디자인", "기본 색상, 새 레이아웃, 내 커스텀 테마", CustomizeTheme);
         menu.Add("\uEB9F", "전체 배경 이미지", "실제 화면을 보며 이미지 위치와 확대 조절", CustomizeBackground);
+        menu.Add("\uEB9F", "칸 배경 일괄 설정", "전체 또는 폴더 안의 칸에 이미지·투명도 적용", CustomizeBulk);
         menu.Add("\uE8D2", "글꼴", "런처와 설정 창의 글꼴을 각각 고르기", CustomizeFonts);
         menu.Note("칸별 배경은 카드 우클릭 → ‘이 칸의 배경 이미지’에서 바꿀 수 있어요.");
         menu.Owner=this;menu.ShowDialog();
+    }
+    private void CustomizeText()
+    {
+        var dialog = new AppearanceWindow(store, library) { Owner = this };
+        if (dialog.ShowDialog() == true) { dialog.ApplyTo(library); Commit(); }
     }
     private void CustomizeFonts()
     {
@@ -376,12 +382,16 @@ public sealed class LibraryWindow : Window
     private void CustomizeSlot(Entry entry)
     {
         var dialog = new BackgroundWindow(store, library, entry) { Owner = this };
-        if (dialog.ShowDialog() == true) { entry.Background = dialog.Result!; Commit(); }
+        if (dialog.ShowDialog() == true) { dialog.ApplyTo(entry); Commit(); }
     }
     private void CustomizeBackground()
     {
         var dialog = new BackgroundWindow(store, library) { Owner = this };
-        if (dialog.ShowDialog() == true) { library.Background = dialog.Result!; Commit(); }
+        if (dialog.ShowDialog() == true) { library.Background = dialog.Result!; library.Appearance.Opacity=dialog.ResultOpacity; Commit(); }
+    }
+    private void CustomizeBulk()
+    {
+        var dialog=new BackgroundWindow(store,library,null,true,current){Owner=this};if(dialog.ShowDialog()==true){dialog.ApplyBulkTo(library);Commit();}
     }
     private ContextMenu EntryMenu(Entry e)
     {
@@ -453,6 +463,7 @@ public sealed class LibraryWindow : Window
     internal ActionSheet OptionsSheet()
     {
         var menu = new ActionSheet("런처 옵션", "동작 설정과 라이브러리 관리",library.Theme);
+        menu.Add("\uE8D2","중앙 문구 수정","제목과 안내 문구를 작성하기",CustomizeText);
         menu.Section("동작");
         menu.AddToggle("휠로 다이얼 돌리기", "끄면 이전 / 다음 페이지 버튼으로 넘겨요. 켜면 휠 한 칸에 아이콘이 하나씩 돌아요.",library.WheelDialEnabled,value=>{library.WheelDialEnabled=value;Commit();});
         menu.Section("라이브러리");
@@ -465,12 +476,12 @@ public sealed class LibraryWindow : Window
     }
     private void Export()
     {
-        var dialog = new SaveFileDialog { Title = "아이콘을 포함하여 백업", Filter = "런처 백업|*.zip", FileName = "DeckLauncher-backup-" + DateTime.Now.ToString("yyyyMMdd") + ".zip" };
+        var dialog = new SaveFileDialog { Title = "아이콘을 포함하여 백업", Filter = "런처 백업|*.zip", FileName = Store.BackupFileName(), OverwritePrompt = false };
         if (dialog.ShowDialog(this) != true) return;
         try
         {
-            store.Backup(dialog.FileName, library);
-            MessageBox.Show(this, "등록 정보와 사용자 지정 아이콘을 백업했습니다.", "백업 완료");
+            var savedPath = store.Backup(dialog.FileName, library);
+            MessageBox.Show(this, "등록 정보와 사용자 지정 아이콘을 백업했습니다.\n" + savedPath, "백업 완료");
         }
         catch (Exception ex) { UI.Error(ex); }
     }
@@ -524,7 +535,6 @@ public sealed class EditorWindow : Window
         note = Field(nameColumn, "마우스를 올렸을 때 표시할 메모", original.Note, out _);
         note.Height = 82; note.AcceptsReturn = true; note.TextWrapping = TextWrapping.Wrap; note.VerticalContentAlignment = VerticalAlignment.Top; note.VerticalScrollBarVisibility = ScrollBarVisibility.Auto; note.MaxLength = 300; note.ToolTip = "최대 300자. 런처 가운데에 표시됩니다.";
         panel.Children.Add(identity);
-
         var targetRow = new Grid(); targetRow.ColumnDefinitions.Add(new()); targetRow.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
         target = Field(panel, "파일 경로 또는 URL", original.Target, out var targetLabel, host: targetRow);
         var browse = UI.Button("찾아보기…", () => { var d = new OpenFileDialog { Filter = "모든 파일|*.*" }; if (d.ShowDialog(this) == true) { target.Text = d.FileName; UpdatePreview(); } }); browse.Margin = new Thickness(8, 0, 0, 0); Grid.SetColumn(browse, 1); targetRow.Children.Add(browse);
@@ -569,7 +579,7 @@ public sealed class EditorWindow : Window
         if (!original.IsFolder && path.Length == 0) { MessageBox.Show(this, "실행할 파일 경로나 링크를 입력해 주세요."); target.Focus(); return; }
         try
         {
-            Result = new Entry { Id = original.Id, ParentId = original.ParentId, IsFolder = original.IsFolder, Name = name.Text.Trim(), Target = path, Arguments = arguments.Text, WorkingDirectory = working.Text.Trim().Trim('"'), Note = note.Text.Trim(), IconFile = pickedIcon != null ? store.CopyIcon(pickedIcon) : existingIcon, Background = original.Background.Copy() };
+            Result = new Entry { Id = original.Id, ParentId = original.ParentId, IsFolder = original.IsFolder, Name = name.Text.Trim(), Target = path, Arguments = arguments.Text, WorkingDirectory = working.Text.Trim().Trim('"'), Note = note.Text.Trim(), Opacity = original.Opacity, SeparateOpacity=original.SeparateOpacity, IconOpacity=original.IconOpacity, TextOpacity=original.TextOpacity, IconFile = pickedIcon != null ? store.CopyIcon(pickedIcon) : existingIcon, Background = original.Background.Copy() };
             DialogResult = true;
         }
         catch (Exception ex) { UI.Error(ex); }

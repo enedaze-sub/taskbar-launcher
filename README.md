@@ -30,11 +30,24 @@ git clone https://github.com/enedaze-sub/taskbar-launcher.git
 `taskbar-launcher\실행파일\DeckLauncher.exe`를 실행합니다. 새 버전은 `git pull`로 받습니다.
 등록 정보는 `실행파일\Data`에 저장되며 git이 건드리지 않습니다.
 
+## 문구 · 배경 · 투명도 (v8.2)
+
+- **… → 중앙 문구 수정:** 제목과 중앙 안내를 직접 작성합니다.
+- **꾸미기 → 전체 배경 이미지:** 전체 런처 투명도도 여기서 조절합니다.
+- **칸 우클릭 → 이 칸의 배경 이미지:** 칸 투명도(-100~85%)와 이미지 위치를 조절합니다. 음수는 바탕을 더 진하게 만듭니다.
+- 기본은 칸 전체를 함께 조절합니다. **배경 · 아이콘 · 글자 투명도를 따로 조절**을 켜면 아이콘과 글자를 각각 0~100%로 조절할 수 있습니다. 예: 배경 70%, 아이콘·글자 0%는 흐릿한 배경 위에 선명한 아이콘·글자를 표시합니다.
+- **꾸미기 → 칸 배경 일괄 설정:** 전체 / 현재 폴더 / 하위 폴더 포함 범위를 선택합니다. 이미지와 투명도는 각각 적용할 수 있습니다.
+- 백업 이름에 시간·초를 추가했으며, 중복된 이름에는 숫자를 붙여 기존 백업을 보존합니다.
+
+자동 검사 Windows 201개 · Linux 126개 · macOS 144개 통과. [자세한 변경·사용 안내](docs/v8.2.md).
+
+![Windows 별도 투명도 설정](미리보기/독립-투명도.png)
+
 ## 사용법 요약
 - **등록:** 실행 파일(.exe)이나 바로가기를 런처 설정 창에 끌어다 놓으면 끝입니다.
   작업표시줄에만 있는 앱은 설정 창의 **직접 등록**에서 바로가기 ‘대상’을 붙여 넣으세요.
-- **꾸미기:** 설정 창 → 꾸미기 → 색상 · UI 디자인(부채꼴 · 냥냥 포켓 · 사이버 HUD · 다이어리 스크랩 · 글래스 도크 · 별빛 궤도) / 전체 배경 이미지 / 글꼴
-- **옵션(···):** 휠 다이얼, 백업 · 복원, 저장 폴더 열기, 런처 종료
+- **꾸미기:** 설정 창 → 꾸미기 → 칸 배경 일괄 설정 / 색상 · UI 디자인(부채꼴 · 냥냥 포켓 · 사이버 HUD · 다이어리 스크랩 · 글래스 도크 · 별빛 궤도) / 전체 배경 이미지 / 글꼴
+- **옵션(···):** 중앙 문구 수정, 휠 다이얼, 백업 · 복원, 저장 폴더 열기, 런처 종료
 - 단축키: `Home` 처음으로 · `Esc` 상위 폴더/숨기기 · `PageUp/PageDown` 페이지 · `Ctrl+F` 설정
 
 자세한 내용은 [사용안내.txt](사용안내.txt)를 보세요.
@@ -45,10 +58,10 @@ git clone https://github.com/enedaze-sub/taskbar-launcher.git
 
 | 대상 | 설치 패키지 | 사용안내 |
 |---|---|---|
-| Ubuntu 일반 PC, x86_64 | [Linux 내려받기](https://github.com/enedaze-sub/taskbar-launcher/releases/download/ports-2026.10.13/DeckLauncher-Linux-x86_64.tar.gz) | [리눅스 안내](리눅스/README.md) |
-| macOS 14.4+, Apple Silicon/Intel | [macOS 내려받기](https://github.com/enedaze-sub/taskbar-launcher/releases/download/ports-2026.10.13/DeckLauncher-macOS.tar.gz) | [Mac 안내](macOS/README.md) |
+| Ubuntu 일반 PC, x86_64 | [Linux 내려받기](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.2/DeckLauncher-Linux-x86_64-v8.2.tar.gz) | [리눅스 안내](리눅스/README.md) |
+| macOS 14.4+, Apple Silicon/Intel | [macOS 내려받기](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.2/DeckLauncher-macOS-v8.2.tar.gz) | [Mac 안내](macOS/README.md) |
 
-**[Linux/macOS 미리보기 배포](https://github.com/enedaze-sub/taskbar-launcher/releases/tag/ports-2026.10.13)**입니다. 자동 검사 Linux 84개·macOS 102개와 Qt 렌더링을 Windows에서 확인했으며, 실제 Ubuntu/Mac 설치와 Dock 동작은 실기 검증 전입니다. 기존 Windows 릴리스는 그대로 유지합니다.
+**[v8.2 릴리즈](https://github.com/enedaze-sub/taskbar-launcher/releases/tag/v8.2)**에 세 버전의 설치 패키지가 포함됩니다. Linux/macOS는 미리보기 버전이며, 자동 검사 Linux 126개·macOS 144개와 Qt 렌더링을 Windows에서 확인했습니다. 실제 Ubuntu/Mac 설치와 Dock 동작은 실기 검증 전입니다.
 
 Linux는 패키지를 풀고 `bash install.sh --with-system-deps`를 실행합니다. Mac은 최초 빌드에 Python 3.10~3.15와 Apple Command Line Tools가 필요하며, `install.command`로 `~/Applications/DeckLauncher.app`을 만듭니다. 완성된 Mac 앱은 Python 없이 실행할 수 있습니다. Apple Developer ID 서명/공증은 포함하지 않습니다.
 

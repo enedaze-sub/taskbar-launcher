@@ -51,7 +51,7 @@ public sealed class FontWindow : Window
         var right = new Grid(); Grid.SetColumn(right, 1); right.RowDefinitions.Add(new() { Height = GridLength.Auto }); right.RowDefinitions.Add(new()); right.RowDefinitions.Add(new() { Height = GridLength.Auto }); right.RowDefinitions.Add(new() { Height = GridLength.Auto }); body.Children.Add(right);
         var launcherCaption = Caption("런처 미리보기", launcherName); right.Children.Add(launcherCaption);
         var entries = library.Entries.Count == 0 ? new List<Entry> { new() { Name = "내 폴더", IsFolder = true }, new() { Name = "바로가기" }, new() { Name = "메모" } } : library.Entries;
-        preview = new LauncherWindow(store, new Library { Entries = entries, Theme = library.Theme.Copy(), Background = library.Background.Copy() }, true);
+        preview = new LauncherWindow(store, new Library { Entries = entries, Theme = library.Theme.Copy(), Background = library.Background.Copy(), Appearance = library.Appearance.Copy() }, true);
         var stage = UI.Res(new Border { CornerRadius = new CornerRadius(18), Padding = new Thickness(10, 8, 10, 0), Margin = new Thickness(0, 8, 0, 16), Child = preview.DetachPreview(this) }, Border.BackgroundProperty, "SkinPanel"); Grid.SetRow(stage, 1); right.Children.Add(stage);
         var interfaceCaption = Caption("설정 창 미리보기", interfaceName); Grid.SetRow(interfaceCaption, 2); right.Children.Add(interfaceCaption);
         UI.Res(sample, Border.BackgroundProperty, "SkinPanel"); sample.Margin = new Thickness(0, 8, 0, 0); Grid.SetRow(sample, 3); right.Children.Add(sample); BuildSample();

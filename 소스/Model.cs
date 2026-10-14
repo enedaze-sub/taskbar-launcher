@@ -4,6 +4,19 @@ using System.Text.Json;
 
 namespace DeckLauncher;
 
+public sealed class AppearanceSettings
+{
+    public const string DefaultNote = "자주 쓰는 것들을 한 번에. 실행할 아이콘을 선택하세요.";
+    public string Title { get; set; } = "나의 바로가기";
+    public string Note { get; set; } = DefaultNote;
+    public double Opacity { get; set; } = 1;
+    public AppearanceSettings Copy() => new() { Title = Title, Note = Note, Opacity = Opacity };
+    public void Validate()
+    {
+        if (Title == null || Title.Length > 60 || Note == null || Note.Length > 300 || !double.IsFinite(Opacity) || Opacity < .2 || Opacity > 1) throw new InvalidDataException("중앙 문구 또는 전체 투명도 값이 잘못되었습니다.");
+    }
+}
+
 public sealed class Entry
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
@@ -14,6 +27,10 @@ public sealed class Entry
     public string Arguments { get; set; } = "";
     public string WorkingDirectory { get; set; } = "";
     public string Note { get; set; } = "";
+    public double Opacity { get; set; } = 1;
+    public bool SeparateOpacity { get; set; }
+    public double IconOpacity { get; set; } = 1;
+    public double TextOpacity { get; set; } = 1;
     public string? IconFile { get; set; }
     public BackgroundSettings Background { get; set; } = new();
 }
@@ -27,6 +44,7 @@ public sealed class Library
     public List<SavedTheme> CustomThemes { get; set; } = new();
     public FontSettings Fonts { get; set; } = new();
     public BackgroundSettings Background { get; set; } = new();
+    public AppearanceSettings Appearance { get; set; } = new();
     public ThemeSettings Theme { get; set; } = new();
     public List<Entry> Entries { get; set; } = new();
 
@@ -88,6 +106,21 @@ public sealed class Library
         }
         return true;
     }
+    public List<Entry> BackgroundTargets(string? parent, string scope)
+    {
+        if(scope=="all")return Entries.ToList();
+        if(scope=="level")return Children(parent).ToList();
+        if(scope!="tree")throw new InvalidDataException("알 수 없는 적용 범위입니다.");
+        bool Inside(Entry e) { var id=e.ParentId;var seen=new HashSet<string>();while(id!=null && seen.Add(id)){if(id==parent)return true;id=Find(id)?.ParentId;}return parent==null; }
+        return Entries.Where(Inside).ToList();
+    }
+    public int ApplyBackgrounds(IEnumerable<string> ids,BackgroundSettings? settings,double? opacity,bool? separateOpacity=null,double? iconOpacity=null,double? textOpacity=null)
+    {
+        var chosen=ids.Distinct().Select(Find).ToList();if(chosen.Count==0 || chosen.Any(e=>e==null))throw new InvalidDataException("적용할 칸이 없습니다.");
+        settings?.Validate();if(opacity is double value && (!double.IsFinite(value) || value<.15 || value>2))throw new InvalidDataException("칸의 투명도가 잘못되었습니다.");
+        if(new[]{iconOpacity,textOpacity}.Any(v=>v.HasValue && (!double.IsFinite(v.Value) || v<0 || v>1)))throw new InvalidDataException("아이콘 또는 글자 투명도가 잘못되었습니다.");
+        foreach(var e in chosen){if(separateOpacity.HasValue)e!.SeparateOpacity=separateOpacity.Value;if(iconOpacity.HasValue)e!.IconOpacity=iconOpacity.Value;if(textOpacity.HasValue)e!.TextOpacity=textOpacity.Value;if(settings!=null)e!.Background=settings.Copy();if(opacity!=null)e!.Opacity=opacity.Value;}return chosen.Count;
+    }
     public void Remove(Entry e)
     {
         var ids = new HashSet<string> { e.Id };
@@ -97,6 +130,7 @@ public sealed class Library
     }
     public void Validate()
     {
+        Appearance ??= new(); Appearance.Validate();
         Background ??= new(); Background.Validate(); Theme ??= new(); Theme.Validate(); CustomThemes ??= new(); Fonts ??= new(); Fonts.Validate();
         var themeIds = new HashSet<string>();
         foreach (var saved in CustomThemes)
@@ -109,6 +143,8 @@ public sealed class Library
         foreach (var e in Entries)
         {
             e.Background ??= new(); e.Background.Validate();
+            if (!double.IsFinite(e.Opacity) || e.Opacity < .15 || e.Opacity > 2) throw new InvalidDataException("칸의 투명도 값이 잘못되었습니다.");
+            if(new[]{e.IconOpacity,e.TextOpacity}.Any(v=>!double.IsFinite(v) || v<0 || v>1))throw new InvalidDataException("아이콘 또는 글자 투명도가 잘못되었습니다.");
             if (string.IsNullOrWhiteSpace(e.Id) || !ids.Add(e.Id)) throw new InvalidDataException("항목 ID가 중복되었거나 비어 있습니다.");
             if (string.IsNullOrWhiteSpace(e.Name)) throw new InvalidDataException("이름이 없는 항목이 있습니다.");
             if (e.IconFile != null && (Path.GetFileName(e.IconFile) != e.IconFile || e.IconFile.Contains(':'))) throw new InvalidDataException("잘못된 아이콘 경로입니다.");
@@ -151,16 +187,28 @@ public sealed class Store
         File.Copy(path, Path.Combine(IconDirectory, name)); return name;
     }
     public string IconPath(string name) => Path.Combine(IconDirectory, Path.GetFileName(name));
-    public void Backup(string path, Library library)
+    public static string BackupFileName(DateTime? when = null) => "DeckLauncher-backup-" + (when ?? DateTime.Now).ToString("yyyyMMdd-HHmmss") + ".zip";
+    public string Backup(string path, Library library)
     {
         Save(library);
-        using var stream = File.Create(path); using var zip = new ZipArchive(stream, ZipArchiveMode.Create);
+        var requested = Path.GetFullPath(path); var directory = Path.GetDirectoryName(requested)!;
+        var stem = Path.GetFileNameWithoutExtension(requested); var extension = Path.GetExtension(requested);
+        FileStream stream; int number = 1;
+        while (true)
+        {
+            path = number == 1 ? requested : Path.Combine(directory, $"{stem}_{number}{extension}");
+            if (Directory.Exists(path)) { number++; continue; }
+            try { stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None); break; }
+            catch (IOException) when (File.Exists(path) || Directory.Exists(path)) { number++; }
+        }
+        using var backupStream = stream; using var zip = new ZipArchive(stream, ZipArchiveMode.Create);
         zip.CreateEntryFromFile(FilePath, "library.json");
         foreach (var icon in library.ImageFiles())
         {
             if (!File.Exists(IconPath(icon!))) throw new FileNotFoundException("사용자 지정 아이콘을 찾을 수 없습니다.", icon);
             zip.CreateEntryFromFile(IconPath(icon!), "icons/" + icon);
         }
+        return path;
     }
     public sealed record BackupContent(Library Library, Dictionary<string, byte[]> Icons);
     public static BackupContent ReadBackup(string path)

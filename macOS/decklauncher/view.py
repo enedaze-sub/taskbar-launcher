@@ -9,6 +9,7 @@ from PySide6.QtGui import (QColor,QPainter,QPainterPath,QPen,QBrush,QLinearGradi
 from PySide6.QtWidgets import QWidget,QFileIconProvider,QApplication,QToolTip
 from PySide6.QtCore import QFileInfo
 from .fonts import resolved
+from .model import DEFAULT_NOTE
 
 MIME='application/x-decklauncher-items'
 BASE=QRectF(0,0,920,454)
@@ -174,6 +175,19 @@ class Canvas(QWidget):
         s=self.scale();p.translate((self.width()-920*s)/2,(self.height()-454*s)/2);p.scale(s,s)
         self.draw(p);p.end()
     def draw(self,p):
+        self.composite(p,self.library.data['Appearance']['Opacity'],self.draw_content)
+    def composite(self,p,opacity,draw):
+        if opacity>=1:draw(p);return
+        ratio=max(1,p.device().devicePixelRatioF());image=QPixmap(round(920*ratio),round(454*ratio));image.setDevicePixelRatio(ratio);image.fill(Qt.transparent)
+        layer=QPainter(image);layer.setRenderHints(p.renderHints());draw(layer);layer.end()
+        p.save();p.setOpacity(p.opacity()*opacity);p.drawPixmap(0,0,image);p.restore()
+    def central_text(self):
+        a=self.library.data['Appearance'];title=self.library.find(self.current)['Name'] if self.current else a['Title']
+        item=self.library.find(self.hover_id)
+        note=(item['Note'] if item['Note'] else item['Name']) if item else a['Note']
+        if not item and not self.visible() and note==DEFAULT_NOTE:note='설정에서 앱이나 폴더를 등록해 보세요.'
+        return title,note
+    def draw_content(self,p):
         t=self.library.theme;d=t['Design'];bg,sf,ac,tx=[QColor(t[k]) for k in ('Background','Surface','Accent','Text')]
         skin=shell(d)
         if d=='cat':
@@ -210,10 +224,7 @@ class Canvas(QWidget):
                 p.setBrush(mix(bg,'#FFFFFF',.12));p.drawRoundedRect(QRectF(x-31,394,62,34),17,17)
                 for dx in (-10,10):p.drawLine(QPointF(x+dx,402),QPointF(x+dx,413))
         if d=='space':p.setPen(QPen(alpha(ac,.55),3));p.setBrush(Qt.NoBrush);p.drawEllipse(QRectF(210,410,500,36))
-        title=self.library.find(self.current)['Name'] if self.current else '나의 바로가기'
-        item=self.library.find(self.hover_id)
-        note=(item['Note'] if item and item['Note'] else item['Name']) if item else '자주 쓰는 것들을 한 번에. 실행할 아이콘을 선택하세요.'
-        if not entries:note='설정에서 앱이나 폴더를 등록해 보세요.'
+        title,note=self.central_text()
         x,y,w=(250,212,420) if d in ('modern','cat') else (190,124,540) if d=='paper' else (310,286,300) if d=='space' else (305,278,310)
         self.text(p,QRectF(x,y,w,30),title,23,tx,heading=True)
         if t['ShowNotes']:self.text(p,QRectF(x,y+33,w,50),note,14.5,tx,wrap=True,heading=True)
@@ -250,29 +261,39 @@ class Canvas(QWidget):
         if wrap:p.drawText(rect,int(align|Qt.TextWordWrap),text)
         else:p.drawText(rect,int(align),QFontMetrics(font).elidedText(text,Qt.ElideRight,int(rect.width())))
     def draw_slot(self,p,e,i,shape,pt,bg,sf,ac,tx):
+        if not e['SeparateOpacity']:
+            self.composite(p,min(1,e['Opacity']),lambda layer:self.draw_slot_content(layer,e,i,shape,pt,bg,sf,ac,tx))
+        else:
+            for part,opacity in [('background',min(1,e['Opacity'])),('icon',e['IconOpacity']),('text',e['TextOpacity'])]:
+                self.composite(p,opacity,lambda layer,part=part:self.draw_slot_content(layer,e,i,shape,pt,bg,sf,ac,tx,part))
+    def draw_slot_content(self,p,e,i,shape,pt,bg,sf,ac,tx,part="all"):
         t=self.library.theme;d=t['Design'];bounds=shape.boundingRect();active=e['Id']==self.hover_id
         palette=['#FFF0A6','#FFD3DC','#CDEFD9','#D3E6FF','#FFE0C2'] if d=='paper' else ['#FFB86B','#7FD1FF','#C59BFF','#7CF2B5','#FF8FB1','#FFE27A']
         fill=mix(palette[i%len(palette)],sf,.35) if d in ('paper','space') else mix(sf,ac,.2) if active else sf
         if d=='modern':fill=alpha(ac,.2 if active else .015)
         gradient=QLinearGradient(bounds.topLeft(),bounds.bottomLeft());gradient.setColorAt(0,mix(fill,'#FFFFFF',.12));gradient.setColorAt(1,fill)
-        p.setPen(QPen(ac if active or d=='neon' else alpha(ac,.25),1.7 if active else 1));p.setBrush(gradient);p.drawPath(shape)
-        draw_background(p,self.images,e['Background'],shape)
-        if d=='paper':
-            p.fillRect(QRectF(bounds.center().x()-23,bounds.top()-5,46,13),alpha(mix(ac,'#FFFFFF',.5),.55))
-            p.setPen(Qt.NoPen);p.setBrush(mix(fill,tx,.15));p.drawPath(poly([(bounds.right()-14,bounds.bottom()),(bounds.right(),bounds.bottom()-14),(bounds.right()-14,bounds.bottom()-14)]))
+        if part in ('all','background'):
+            if e['Opacity']>1:
+                p.save();p.setPen(Qt.NoPen);p.setBrush(alpha(sf,e['Opacity']-1));p.drawPath(shape);p.restore()
+            p.setPen(QPen(ac if active or d=='neon' else alpha(ac,.25),1.7 if active else 1));p.setBrush(gradient);p.drawPath(shape)
+            draw_background(p,self.images,e['Background'],shape)
+            if d=='paper':
+                p.fillRect(QRectF(bounds.center().x()-23,bounds.top()-5,46,13),alpha(mix(ac,'#FFFFFF',.5),.55))
+                p.setPen(Qt.NoPen);p.setBrush(mix(fill,tx,.15));p.drawPath(poly([(bounds.right()-14,bounds.bottom()),(bounds.right(),bounds.bottom()-14),(bounds.right()-14,bounds.bottom()-14)]))
         size=t['IconSize'];center=QPointF(pt)
         if d=='cat':center=QPointF(bounds.left()+33,bounds.center().y());size=min(size,36)
         elif d=='paper':center.setY(bounds.top()+(24 if bounds.height()<70 else 33));size=min(size,32 if bounds.height()<70 else 40)
         elif d=='modern':center.setY(bounds.top()+31)
-        if d=='classic' and t['Frame']!='minimal' or d=='cat':
-            p.setBrush(mix(bg,sf,.5));p.setPen(QPen(alpha(ac,.35),1));r=QRectF(center.x()-size/2-6,center.y()-size/2-6,size+12,size+12)
-            p.drawRoundedRect(r,(size+12)/2 if t['Frame']=='circle' or d=='cat' else 12,(size+12)/2 if t['Frame']=='circle' or d=='cat' else 12)
-        self.images.icon(e).paint(p,QRectF(center.x()-size/2,center.y()-size/2,size,size).toRect())
-        if t['ShowLabels']:
+        if part in ('all','icon'):
+            if d=='classic' and t['Frame']!='minimal' or d=='cat':
+                p.setBrush(mix(bg,sf,.5));p.setPen(QPen(alpha(ac,.35),1));r=QRectF(center.x()-size/2-6,center.y()-size/2-6,size+12,size+12)
+                p.drawRoundedRect(r,(size+12)/2 if t['Frame']=='circle' or d=='cat' else 12,(size+12)/2 if t['Frame']=='circle' or d=='cat' else 12)
+            self.images.icon(e).paint(p,QRectF(center.x()-size/2,center.y()-size/2,size,size).toRect())
+        if t['ShowLabels'] and part in ('all','text'):
             rect=QRectF(bounds.left()+62,bounds.top()+10,bounds.width()-78,32) if d=='cat' else QRectF(bounds.left()+8,bounds.bottom()-25,bounds.width()-16,22) if d in ('paper','modern') else QRectF(pt.x()-48,pt.y()+40,96,22) if d in ('neon','space') else QRectF(pt.x()-64,pt.y()+size/2+12,128,25)
             if e['Background'].get('ImageFile'):p.fillRect(rect,alpha(bg,.85))
             self.text(p,rect,e['Name'],12 if d=='cat' else 11.5,tx,heading=True,align=Qt.AlignVCenter|Qt.AlignLeft if d=='cat' else Qt.AlignCenter)
-        if e['IsFolder']:
+        if e['IsFolder'] and part in ('all','icon'):
             count=str(len(self.library.children(e['Id'])));mark=QRectF(bounds.right()-28,bounds.top()+8,18,18) if d in ('cat','paper','modern') else QRectF(center.x()+14,center.y()+10,18,18)
             p.setBrush(ac);p.setPen(Qt.NoPen);p.drawEllipse(mark);self.text(p,mark,count,10,bg)
     def decorations(self,p,d,bg,sf,ac,tx):

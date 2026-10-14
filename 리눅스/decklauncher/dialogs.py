@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QLabel,QPushButto
     QTextEdit,QFormLayout,QComboBox,QCheckBox,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,
     QAbstractItemView,QSplitter,QFileDialog,QMessageBox,QListWidget,QListWidgetItem,QTabWidget,
     QScrollArea,QWidget,QGridLayout,QSlider,QColorDialog,QFontComboBox,QSpinBox,QDoubleSpinBox,QMenu)
-from .model import Library,COLORS,DESIGNS,entry,background,windows_target
+from .model import Library,COLORS,DESIGNS,entry,background,windows_target,appearance,backup_name
 from .launch import applications,import_path,desktop_values
 from .view import Canvas,MIME,mix
 from .fonts import resolved
@@ -60,7 +60,7 @@ def label(text,heading=False,muted=False):
 def choose_file(parent,title,filter='모든 파일 (*)'):
     return QFileDialog.getOpenFileName(parent,title,'',filter,options=QFileDialog.DontUseNativeDialog)[0]
 def choose_save(parent,title,name,filter):
-    return QFileDialog.getSaveFileName(parent,title,name,filter,options=QFileDialog.DontUseNativeDialog)[0]
+    return QFileDialog.getSaveFileName(parent,title,name,filter,options=QFileDialog.DontUseNativeDialog|QFileDialog.DontConfirmOverwrite)[0]
 def error(parent,ex):QMessageBox.warning(parent,'확인해 주세요',str(ex))
 
 class Dialog(QDialog):
@@ -95,7 +95,7 @@ class Help(Dialog):
 
 class Editor(Dialog):
     def __init__(self,parent,store,lib,item=None,folder=False,parent_id=None):
-        super().__init__(parent,lib,'항목 편집' if item else '폴더 만들기' if folder else '직접 등록',760,730)
+        super().__init__(parent,lib,'항목 편집' if item else '폴더 만들기' if folder else '직접 등록',760,790)
         self.store=store;self.result=copy.deepcopy(item) if item else entry(folder=folder,parent=parent_id)
         self.body.addWidget(label('이름과 실행 대상을 정해 주세요' if not self.result['IsFolder'] else '폴더에 이름을 붙여 주세요',True))
         self.body.addWidget(label('메모는 아이콘 위에 마우스를 올리면 표시됩니다.',muted=True))
@@ -137,7 +137,7 @@ class Editor(Dialog):
         if not item:lib.entries.append(copy.deepcopy(self.result))
         else:item.update(copy.deepcopy(self.result))
         dialog=BackgroundDialog(self,self.store,lib,self.result['Id'])
-        if dialog.exec():self.result['Background']=dialog.result
+        if dialog.exec():dialog.apply_to(self.result)
     def accept(self):
         if not self.name.text().strip():error(self,'이름을 입력해 주세요.');return
         if not self.result['IsFolder'] and not self.target.text().strip():error(self,'실행 대상을 입력해 주세요.');return
@@ -173,34 +173,94 @@ class BackgroundCanvas(Canvas):
     def wheelEvent(self,event):self.zoomed.emit(1 if event.angleDelta().y()>0 else -1)
 
 class BackgroundDialog(Dialog):
-    def __init__(self,parent,store,lib,item_id=None):
-        super().__init__(parent,lib,'이 칸의 배경 꾸미기' if item_id else '런처 배경 꾸미기',1040,790)
-        self.draft=Library(lib.data);self.item_id=item_id
-        self.result=self.draft.find(item_id)['Background'] if item_id else self.draft.data['Background']
+    def __init__(self,parent,store,lib,item_id=None,bulk=False,parent_id=None):
+        super().__init__(parent,lib,'칸 배경 일괄 설정' if bulk else '이 칸의 배경 꾸미기' if item_id else '런처 배경 꾸미기',1040,850 if bulk else 790)
+        self.draft=Library(lib.data);self.original=copy.deepcopy(lib.data);self.bulk=bulk;self.parent_id=parent_id
+        self.item_id=item_id or (lib.entries[0]['Id'] if bulk and lib.entries else None)
+        self.result=copy.deepcopy(self.draft.find(self.item_id)['Background'] if self.item_id else self.draft.data['Background'])
+        self.result_opacity=self.draft.find(self.item_id)['Opacity'] if self.item_id else self.draft.data['Appearance']['Opacity']
         self.body.addWidget(label('미리보기를 보며 이미지를 맞춰 보세요',True))
+        if bulk:
+            controls=QHBoxLayout();self.scope=QComboBox()
+            for text,value in [('전체 칸','all'),('현재 폴더의 칸','level'),('현재 폴더와 하위 폴더','tree')]:self.scope.addItem(text,value)
+            self.apply_image=QCheckBox('배경 이미지·위치 적용');self.apply_opacity=QCheckBox('투명도 적용');self.apply_opacity.setChecked(True)
+            self.count=label('');controls.addWidget(self.scope);controls.addWidget(self.apply_image);controls.addWidget(self.apply_opacity);controls.addWidget(self.count);self.body.addLayout(controls)
         row=QHBoxLayout();row.addWidget(label('이미지를 끌어 위치를 조정하고 휠로 확대할 수 있어요.',muted=True),1)
         row.addWidget(button('이미지 선택',lambda:self.choose(store)));row.addWidget(button('기본 배경',self.reset));self.body.addLayout(row)
-        self.canvas=BackgroundCanvas(store,self.draft);self.canvas.setMinimumHeight(320)
+        self.canvas=BackgroundCanvas(store,self.draft);self.canvas.setMinimumHeight(240)
+        item_id=self.item_id
         if item_id:self.canvas.current=self.draft.find(item_id)['ParentId'];items=self.draft.children(self.canvas.current);self.canvas.page=next(i for i,e in enumerate(items) if e['Id']==item_id)//int(self.draft.theme['Slots'])
-        self.body.addWidget(self.canvas,1);self.canvas.adjusted.connect(self.adjust)
+        backdrop=PreviewBackdrop();preview_layout=QVBoxLayout(backdrop);preview_layout.setContentsMargins(0,0,0,0);preview_layout.addWidget(self.canvas)
+        self.body.addWidget(backdrop,1);self.canvas.adjusted.connect(self.adjust)
         self.sliders={};form=QFormLayout()
         for k,name,lo,hi in [('Zoom','확대',100,400),('OffsetX','가로 위치',-100,100),('OffsetY','세로 위치',-100,100),('Darkness','어둡게',0,85)]:
             s=QSlider(Qt.Horizontal);s.setRange(lo,hi);s.setValue(round(self.result[k]*100));s.valueChanged.connect(lambda v,key=k:self.set_value(key,v/100));form.addRow(name,s);self.sliders[k]=s
         self.canvas.zoomed.connect(lambda d:self.sliders['Zoom'].setValue(self.sliders['Zoom'].value()+d*10))
-        self.body.addLayout(form);self.footer()
-    def set_value(self,key,value):self.result[key]=value;self.canvas.update()
+        self.opacity=QSlider(Qt.Horizontal);self.opacity.setRange(-100 if item_id or bulk else 0,85 if item_id or bulk else 80);self.opacity.setValue(round((1-self.result_opacity)*100));self.opacity_label=label('')
+        form.addRow('칸 전체 / 배경 투명도' if item_id or bulk else '런처 전체 투명도',self.opacity);form.addRow('',self.opacity_label)
+        self.opacity.valueChanged.connect(self.set_opacity)
+        self.separate=QCheckBox('배경 · 아이콘 · 글자 투명도를 따로 조절')
+        current=self.draft.find(self.item_id)
+        self.separate.setChecked(current['SeparateOpacity'] if current else False)
+        self.icon_opacity=QSlider(Qt.Horizontal);self.text_opacity=QSlider(Qt.Horizontal)
+        self.icon_label=label('');self.text_label=label('')
+        if item_id or bulk:
+            form.addRow(self.separate)
+            for slider,caption,field,readout in [(self.icon_opacity,'아이콘 투명도','IconOpacity',self.icon_label),(self.text_opacity,'글자 투명도','TextOpacity',self.text_label)]:
+                slider.setRange(0,100);slider.setValue(round((1-(current[field] if current else 1))*100));readout.setMinimumWidth(70);slider_row=QHBoxLayout();slider_row.addWidget(slider,1);slider_row.addWidget(readout);form.addRow(caption,slider_row)
+                slider.valueChanged.connect(self.refresh_preview)
+            self.separate.toggled.connect(self.refresh_preview)
+
+        controls_widget=QWidget();controls_widget.setObjectName("background-controls");controls_widget.setStyleSheet("QWidget#background-controls {background:"+lib.theme["Background"]+";}");controls_layout=QVBoxLayout(controls_widget);controls_layout.setContentsMargins(0,0,12,0);controls_layout.addLayout(form)
+        controls_layout.addWidget(label('기본은 칸 전체를 함께 조절합니다. 별도 조절을 켜면 칸 슬라이더는 배경에만 적용됩니다. 음수는 바탕을 더 진하게 만듭니다. -100%는 칸 바탕을 최대한 가립니다. 전체 런처 투명도도 함께 적용됩니다.',muted=True))
+        control_scroll=QScrollArea();control_scroll.setWidgetResizable(True);control_scroll.setFrameShape(QScrollArea.NoFrame);control_scroll.setMinimumHeight(180);control_scroll.setMaximumHeight(330);control_scroll.setWidget(controls_widget);self.body.addWidget(control_scroll)
+        if bulk:
+            self.scope.currentIndexChanged.connect(self.refresh_preview);self.apply_image.toggled.connect(self.refresh_preview);self.apply_opacity.toggled.connect(self.refresh_preview)
+        self.refresh_preview();self.footer();available=self.screen().availableGeometry();self.resize(min(1040,available.width()-30),min(900,available.height()-45))
+    @property
+    def opacity_values(self):return dict(SeparateOpacity=self.separate.isChecked(),IconOpacity=round(1-self.icon_opacity.value()/100,2),TextOpacity=round(1-self.text_opacity.value()/100,2))
+    def opacity_args(self):
+        v=self.opacity_values;return dict(separate_opacity=v['SeparateOpacity'],icon_opacity=v['IconOpacity'],text_opacity=v['TextOpacity'])
+    def apply_to(self,item):item.update(Background=copy.deepcopy(self.result),Opacity=self.result_opacity,**self.opacity_values)
+    def target_ids(self):return [e['Id'] for e in self.draft.background_targets(self.parent_id,self.scope.currentData())]
+    def set_opacity(self,value):self.result_opacity=round(1-value/100,2);self.refresh_preview()
+    def refresh_preview(self,*args):
+        enabled=self.separate.isChecked()
+        self.icon_opacity.setEnabled(enabled);self.text_opacity.setEnabled(enabled)
+        self.icon_label.setText(str(self.icon_opacity.value())+'%'+('' if enabled else ' · 칸 전체와 함께 조절'))
+        self.text_label.setText(str(self.text_opacity.value())+'%'+('' if enabled else ' · 칸 전체와 함께 조절'))
+        self.opacity_label.setText(str(self.opacity.value())+'%'+(' · 바탕 강화' if self.opacity.value()<0 else ''))
+        if self.bulk:
+            for e,original in zip(self.draft.entries,self.original['Entries']):e['Background']=copy.deepcopy(original['Background']);e['Opacity']=original['Opacity'];e.update({k:original[k] for k in ('SeparateOpacity','IconOpacity','TextOpacity')})
+            ids=self.target_ids();self.count.setText(str(len(ids))+'개 칸')
+            if ids:
+                self.draft.apply_backgrounds(ids,self.result if self.apply_image.isChecked() else None,self.result_opacity if self.apply_opacity.isChecked() else None,**(self.opacity_args() if self.apply_opacity.isChecked() else {}))
+                sample=self.draft.find(ids[0]);self.item_id=sample['Id'];self.canvas.navigate(sample['ParentId']);self.canvas.page=self.draft.children(sample['ParentId']).index(sample)//self.draft.theme['Slots']
+        elif self.item_id:self.apply_to(self.draft.find(self.item_id))
+        else:self.draft.data['Background']=copy.deepcopy(self.result);self.draft.data['Appearance']['Opacity']=self.result_opacity
+        self.canvas.update()
+    def set_value(self,key,value):
+        self.result[key]=value
+        if self.bulk:self.apply_image.setChecked(True)
+        self.refresh_preview()
     def choose(self,store):
         path=choose_file(self,'배경 이미지 선택','이미지 (*.png *.jpg *.jpeg *.webp *.bmp)')
         if path:
             try:
                 name=store.copy_image(path)
                 if self.canvas.images.image(name).isNull():raise ValueError('이미지를 읽을 수 없습니다.')
-                self.result['ImageFile']=name;self.canvas.update()
+                self.result['ImageFile']=name
+                if self.bulk:self.apply_image.setChecked(True)
+                self.refresh_preview()
             except Exception as ex:error(self,ex)
     def reset(self):
         self.result.update(background())
         for k,s in self.sliders.items():s.setValue(round(self.result[k]*100))
-        self.canvas.update()
+        if self.bulk:self.apply_image.setChecked(True)
+        self.refresh_preview()
+    def accept(self):
+        if self.bulk and (not self.target_ids() or not (self.apply_image.isChecked() or self.apply_opacity.isChecked())):error(self,'적용할 칸과 적용 항목을 선택해 주세요.');return
+        super().accept()
     def adjust(self,dx,dy):
         shapes=self.canvas.geometry();items=self.canvas.visible();d=self.result
         crop=next((shapes[i][0] for i,e in enumerate(items) if e['Id']==self.item_id),None)
@@ -401,30 +461,40 @@ class Settings(Dialog):
         e=self.item()
         if e:
             d=BackgroundDialog(self,self.store,self.lib,e['Id'])
-            if d.exec():e['Background']=d.result;self.save_refresh()
+            if d.exec():d.apply_to(e);self.save_refresh()
     def context(self,pos):
         menu=QMenu(self)
         for n,f in [('편집',self.edit),('실행',self.open_selected),('칸 배경 꾸미기',self.background_selected),('상위로 꺼내기',self.move_up),('삭제',self.remove)]:menu.addAction(n,f)
         menu.exec(self.tree.viewport().mapToGlobal(pos))
     def appearance(self):
-        d=ActionSheet(self,self.lib,'꾸미기',[('색상 · UI 디자인','10가지 색상, 6가지 모양과 나만의 구성',self.theme_dialog),('전체 배경 이미지','미리보기에서 확대하고 위치 맞추기',self.background_dialog),('글꼴 고르기','런처와 설정창의 글꼴을 각각 선택',self.font_dialog)])
+        d=ActionSheet(self,self.lib,'꾸미기',[('색상 · UI 디자인','10가지 색상, 6가지 모양과 나만의 구성',self.theme_dialog),('전체 배경 이미지','미리보기에서 확대하고 위치 맞추기',self.background_dialog),('칸 배경 일괄 설정','전체 또는 폴더 안의 칸에 이미지·투명도 적용',self.bulk_background),('글꼴 고르기','런처와 설정창의 글꼴을 각각 선택',self.font_dialog)])
         d.exec()
+    def appearance_dialog(self):
+        d=AppearanceDialog(self,self.store,self.lib)
+        if d.exec():
+            self.lib.data['Appearance']=copy.deepcopy(d.result)
+            self.save_refresh()
+    def bulk_background(self):
+        d=BackgroundDialog(self,self.store,self.lib,bulk=True,parent_id=self.parent_id())
+        if d.exec():
+            self.lib.apply_backgrounds(d.target_ids(),d.result if d.apply_image.isChecked() else None,d.result_opacity if d.apply_opacity.isChecked() else None,**(d.opacity_args() if d.apply_opacity.isChecked() else {}));self.save_refresh()
     def theme_dialog(self):
         d=ThemeDialog(self,self.store,self.lib)
         if d.exec():self.lib.data['Theme']=d.draft.theme;self.lib.data['CustomThemes']=d.draft.data['CustomThemes'];self.save_refresh()
     def background_dialog(self):
         d=BackgroundDialog(self,self.store,self.lib)
-        if d.exec():self.lib.data['Background']=d.result;self.save_refresh()
+        if d.exec():self.lib.data['Background']=d.result;self.lib.data['Appearance']['Opacity']=d.result_opacity;self.save_refresh()
     def font_dialog(self):
         d=FontDialog(self,self.store,self.lib)
         if d.exec():self.lib.data['Fonts']=d.result;self.save_refresh()
     def options(self):
-        d=ActionSheet(self,self.lib,'런처 옵션',[('백업 저장','등록 정보와 사용자 이미지를 ZIP으로 저장',self.backup),('백업 가져오기','Windows 백업도 가져올 수 있어요',self.restore),('독 배치 설정','화면 가장자리와 가로 위치 조정',self.placement),('저장 폴더 열기','등록 정보와 이미지가 저장된 위치',self.c.open_data),('런처 종료','백그라운드 실행도 끝내기',self.c.quit)],wheel=True,changed=self.save_refresh)
+        d=ActionSheet(self,self.lib,'런처 옵션',[('중앙 문구 수정','제목과 안내 문구를 작성하기',self.appearance_dialog),('백업 저장','등록 정보와 사용자 이미지를 ZIP으로 저장',self.backup),('백업 가져오기','Windows 백업도 가져올 수 있어요',self.restore),('독 배치 설정','화면 가장자리와 가로 위치 조정',self.placement),('저장 폴더 열기','등록 정보와 이미지가 저장된 위치',self.c.open_data),('런처 종료','백그라운드 실행도 끝내기',self.c.quit)],wheel=True,changed=self.save_refresh)
         d.exec()
     def backup(self):
-        path=choose_save(self,'백업 저장','decklauncher-backup.zip','ZIP 백업 (*.zip)')
+        path=choose_save(self,'백업 저장',backup_name(),'ZIP 백업 (*.zip)')
         if path:
-            try:self.store.backup(path,self.lib);QMessageBox.information(self,'백업 완료','등록 정보와 이미지를 저장했습니다.')
+            try:
+                saved=self.store.backup(path,self.lib);QMessageBox.information(self,'백업 완료','등록 정보와 이미지를 저장했습니다.\n'+saved)
             except Exception as ex:error(self,ex)
     def restore(self):
         path=choose_file(self,'백업 가져오기','ZIP 백업 (*.zip)')
@@ -433,7 +503,7 @@ class Settings(Dialog):
         try:
             from datetime import datetime
             self.store.directory.mkdir(parents=True,exist_ok=True)
-            self.store.backup(self.store.directory/('가져오기전-'+datetime.now().strftime('%Y%m%d-%H%M%S')+'.zip'),self.lib)
+            self.store.backup(self.store.directory/backup_name(prefix='가져오기전'),self.lib)
             self.c.library=self.store.restore(path);self.c.canvas.library=self.c.library;self.c.canvas.navigate(None);self.c.save();self.refresh()
             n=sum(windows_target(e['Target']) for e in self.lib.entries if not e['IsFolder'])
             if n:QMessageBox.information(self,'Windows 백업 가져옴',f'{n}개 항목이 Windows용 경로입니다. 편집에서 리눅스 앱으로 다시 연결해 주세요. 폴더·아이콘·메모는 유지했습니다.')
@@ -459,3 +529,27 @@ class ActionSheet(Dialog):
             def invoke(checked=False,f=action):self.accept();QTimer.singleShot(0,f)
             b.clicked.connect(invoke);self.body.addWidget(b)
         self.body.addWidget(button('닫기',self.reject))
+
+
+class PreviewBackdrop(QWidget):
+    def paintEvent(self,event):
+        from PySide6.QtGui import QPainter
+        painter=QPainter(self);painter.fillRect(self.rect(),QColor('#E8ECF2'))
+        for y in range(0,self.height(),20):
+            for x in range(0,self.width(),20):
+                if (x//20+y//20)%2:painter.fillRect(x,y,20,20,QColor('#C8CFDA'))
+
+class AppearanceDialog(Dialog):
+    def __init__(self,parent,store,lib):
+        super().__init__(parent,lib,'중앙 문구 수정',950,640)
+        self.draft=Library(lib.data);self.result=self.draft.data['Appearance']
+        self.body.addWidget(label('나만의 제목과 안내 문구',True))
+        self.body.addWidget(label('아이콘을 가리키면 개별 메모를 보여주고, 떼면 작성한 문구로 돌아옵니다. 폴더 안에서는 폴더 이름을 표시합니다.',muted=True))
+        form=QFormLayout();self.title=QLineEdit(self.result['Title']);self.title.setMaxLength(60);self.note=QTextEdit(self.result['Note']);self.note.setMaximumHeight(85);form.addRow('제목',self.title);form.addRow('중앙 안내 문구',self.note);self.body.addLayout(form)
+        self.canvas=Canvas(store,self.draft,interactive=False);self.canvas.setMinimumHeight(227);self.body.addWidget(self.canvas,1)
+        self.title.textChanged.connect(self.refresh);self.note.textChanged.connect(self.refresh);self.body.addWidget(button('기본 문구',self.reset_text));self.footer()
+    def refresh(self,*args):self.result.update(Title=self.title.text(),Note=self.note.toPlainText());self.canvas.update()
+    def reset_text(self):a=appearance();self.title.setText(a['Title']);self.note.setPlainText(a['Note'])
+    def accept(self):
+        if len(self.result['Note'])>300:error(self,'안내 문구는 300자까지 입력해 주세요.');return
+        self.draft.validate();super().accept()

@@ -56,6 +56,10 @@ public sealed partial class LauncherWindow : Window
     internal int PageCount => Math.Max(1, (library.Children(current).Count() + Theme.Slots - 1) / Theme.Slots);
     internal int CurrentPage => page;
     internal string DisplayedNote => note.Text;
+    internal string DisplayedTitle => title.Text;
+    internal double RenderedOpacity => fan.Opacity;
+    internal double SlotLayerOpacity(string id,int layer) => ((Canvas)((Canvas)slots[id].Content).Children[layer]).Opacity;
+    internal double SlotOpacity(string id) => ((Canvas)slots[id].Content).Opacity;
     internal IReadOnlyList<string> DisplayedIds => slots.Keys.ToList();
     internal int DialStart => dialStart;
     internal string? CurrentFolder => current;
@@ -137,7 +141,7 @@ public sealed partial class LauncherWindow : Window
     }
     private void AnimateOpen()
     {
-        fan.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(190)));
+        fan.BeginAnimation(OpacityProperty, new DoubleAnimation(0, library.Appearance.Opacity, TimeSpan.FromMilliseconds(190)));
         unfolding.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(.88, 1, TimeSpan.FromMilliseconds(260)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
     }
     private static Point Polar(double radius, double angle)
@@ -171,6 +175,7 @@ public sealed partial class LauncherWindow : Window
     }
     private void Refresh()
     {
+        fan.BeginAnimation(OpacityProperty, null); fan.Opacity = library.Appearance.Opacity;
         if (tag.Parent is Panel oldInfo) oldInfo.Children.Clear();
         CloseFolderPreview(); dial.Children.Clear(); slotShapes.Clear();
         if(!library.WheelDialEnabled) { dialMode=false; dialStart=page*Theme.Slots; }
@@ -243,18 +248,23 @@ public sealed partial class LauncherWindow : Window
             button.ToolTip = new ToolTip { Background = T(Theme.Background), Foreground = T(Theme.Text), BorderBrush = AccentTone(.4), Padding = new Thickness(14), FontFamily = LFont, Content = new TextBlock { Text = entry.Note, Width = 280, TextWrapping = TextWrapping.Wrap, FontSize = 13 } };
             ToolTipService.SetInitialShowDelay(button, 650);
         }
-        var contents = new Canvas { Width = 920, Height = 454 };
+        var contents = new Canvas { Width = 920, Height = 454, Opacity = entry.SeparateOpacity ? 1 : Math.Min(1,entry.Opacity) };
+        var backdrop=new Canvas {Width=920,Height=454,Opacity=entry.SeparateOpacity?Math.Min(1,entry.Opacity):1};
+        var icons=new Canvas {Width=920,Height=454,Opacity=entry.SeparateOpacity?entry.IconOpacity:1,IsHitTestVisible=false};
+        var texts=new Canvas {Width=920,Height=454,Opacity=entry.SeparateOpacity?entry.TextOpacity:1,IsHitTestVisible=false};
+        contents.Children.Add(backdrop);contents.Children.Add(icons);contents.Children.Add(texts);
         int slotIndex = slots.Count;
         var shape = new WpfPath { Data = geometry };
-        StyleSlot(shape, slotIndex); contents.Children.Add(shape);
+        if(entry.Opacity>1)backdrop.Children.Add(new WpfPath {Data=geometry,Fill=T(Theme.Surface),Opacity=entry.Opacity-1,IsHitTestVisible=false});
+        StyleSlot(shape, slotIndex); backdrop.Children.Add(shape);
         string? slotPath = slotOverrides.GetValueOrDefault(entry.Id) ?? (entry.Background.ImageFile != null ? store.IconPath(entry.Background.ImageFile) : null);
         if (slotPath != null)
         {
-            try { if(!slotImages.TryGetValue(slotPath,out var bitmap))slotImages[slotPath]=bitmap=(BitmapSource)Native.LoadImage(slotPath,640);contents.Children.Add(BackgroundTools.Layer(bitmap,entry.Background,geometry)); } catch { }
+            try { if(!slotImages.TryGetValue(slotPath,out var bitmap))slotImages[slotPath]=bitmap=(BitmapSource)Native.LoadImage(slotPath,640);backdrop.Children.Add(BackgroundTools.Layer(bitmap,entry.Background,geometry)); } catch { }
         }
         var point = IconPoint(geometry,angle); var bounds = geometry.Bounds;
         bool tiles = TileLayout;
-        DrawSlotDecorations(contents, geometry, point, slotIndex, entry.IsFolder);
+        DrawSlotDecorations(backdrop, geometry, point, slotIndex, entry.IsFolder);
         // Tile layouts size the frame from the slot so the icon always has even padding inside it.
         double frameSize = !tiles ? 60 : Theme.Design=="cat" ? Math.Min(46, bounds.Height-12) : Theme.Design=="paper" && bounds.Height<80 ? 34 : 50;
         var iconFrame = new Border { Width = frameSize, Height = frameSize, CornerRadius = new CornerRadius(Theme.Frame=="circle"?frameSize/2:frameSize*.28), Background = Theme.Frame=="minimal"?Brushes.Transparent:AccentTone(.12), BorderBrush = Theme.Frame=="minimal"?Brushes.Transparent:AccentTone(.3), BorderThickness = new Thickness(.7), Effect = Shadow(12, .28), RenderTransformOrigin = new Point(.5, .5), RenderTransform = new ScaleTransform(1, 1), IsHitTestVisible = false };
@@ -267,25 +277,25 @@ public sealed partial class LauncherWindow : Window
         if (Theme.Design=="cat")
         {
             // Row tile: icon on the left with equal top/left/bottom padding, name vertically centered beside it.
-            double pad = (bounds.Height - frameSize) / 2; Place(contents, iconFrame, bounds.X + pad, bounds.Y + pad);
+            double pad = (bounds.Height - frameSize) / 2; Place(icons, iconFrame, bounds.X + pad, bounds.Y + pad);
             nameLeft = bounds.X + pad + frameSize + 10; nameWidth = bounds.Right - 34 - nameLeft; nameTop = bounds.Y + (bounds.Height - labelHeight) / 2; nameAlign = HorizontalAlignment.Left;
         }
         else if (tiles)
         {
             // Column tile: the icon + name group is centered vertically in the card.
             double gap = bounds.Height < 80 ? 3 : 7, top = bounds.Y + (bounds.Height - frameSize - gap - labelHeight) / 2;
-            Place(contents, iconFrame, bounds.X + (bounds.Width - frameSize) / 2, top);
+            Place(icons, iconFrame, bounds.X + (bounds.Width - frameSize) / 2, top);
             nameLeft = bounds.X + 6; nameWidth = bounds.Width - 12; nameTop = top + frameSize + gap;
         }
         else if (OrbitLayout)
         {
             // Centered on the orbit circle (drawn 3px above the polar point); the name sits in its pill below.
-            Place(contents, iconFrame, point.X - 30, point.Y - 33);
+            Place(icons, iconFrame, point.X - 30, point.Y - 33);
             nameLeft = point.X - 47.5; nameWidth = 95; nameTop = point.Y + 41;
         }
         else
         {
-            Place(contents, iconFrame, point.X - 30, point.Y - 38);
+            Place(icons, iconFrame, point.X - 30, point.Y - 38);
             nameLeft = point.X - 47.5; nameWidth = 95; nameTop = point.Y + 30;
         }
         var name = new TextBlock { Text = entry.Name, FontSize = 14, FontFamily = LFont, TextAlignment = nameAlign == HorizontalAlignment.Left ? TextAlignment.Left : TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = T(Theme.Text), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = nameAlign, IsHitTestVisible = false };
@@ -297,15 +307,15 @@ public sealed partial class LauncherWindow : Window
             nameBox.Children.Add(new Border { Background = new SolidColorBrush(plateColor), CornerRadius = new CornerRadius(7), Padding = new Thickness(6, 0, 6, 0), HorizontalAlignment = nameAlign, Child = name });
         }
         else { name.MaxWidth = nameWidth; nameBox.Children.Add(name); }
-        Place(contents, nameBox, nameLeft, nameTop);
+        Place(texts, nameBox, nameLeft, nameTop);
         if (entry.IsFolder)
         {
             var count = new TextBlock { Text = library.Children(entry.Id).Count().ToString(), FontSize = 10.5, FontWeight = FontWeights.Bold, FontFamily = new FontFamily("Segoe UI"), Foreground = T(Skin.IsLight(Theme.Accent) ? Theme.Background : "#FFFFFF"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             var badge = new Border { Background = T(Theme.Accent), CornerRadius = new CornerRadius(9), MinWidth = 18, Height = 18, Padding = new Thickness(5, 0, 5, 0), IsHitTestVisible = false, Child = count, HorizontalAlignment = tiles ? HorizontalAlignment.Right : HorizontalAlignment.Left };
             var badgeBox = new Grid { Width = 40, Height = 18, IsHitTestVisible = false }; badgeBox.Children.Add(badge);
-            if (Theme.Design=="cat") Place(contents, badgeBox, bounds.Right - 12 - 40, bounds.Y + (bounds.Height - 18) / 2);
-            else if (tiles) Place(contents, badgeBox, bounds.Right - 8 - 40, bounds.Y + 7);
-            else Place(contents, badgeBox, point.X + 12, point.Y + (OrbitLayout ? 8 : 3));
+            if (Theme.Design=="cat") Place(icons, badgeBox, bounds.Right - 12 - 40, bounds.Y + (bounds.Height - 18) / 2);
+            else if (tiles) Place(icons, badgeBox, bounds.Right - 8 - 40, bounds.Y + 7);
+            else Place(icons, badgeBox, point.X + 12, point.Y + (OrbitLayout ? 8 : 3));
         }
         button.Content = contents;
         void Highlight(bool active)
@@ -349,8 +359,8 @@ public sealed partial class LauncherWindow : Window
     private void DefaultNote()
     {
         tag.Text = current == null ? Theme.Design switch { "cat" => "H E L L O ,   H U M A N", "neon" => "R E A D Y   T O   L A U N C H", "space" => "S T A R   L A U N C H", "modern" => "M Y   W O R K S P A C E", "glass" => "Y O U R   S P A C E", _ => "Q U I C K   L A U N C H" } : "F O L D E R";
-        title.Text = library.Find(current)?.Name ?? "나의 바로가기";
-        note.Text = library.Children(current).Any() ? TileLayout ? "자주 쓰는 것들을 한 번에. 실행할 아이콘을 선택하세요." : "자주 쓰는 것들을 한 번에.\n실행할 아이콘을 선택하세요." : "아직 등록된 항목이 없어요.\n아래 설정 버튼에서 추가해 주세요.";
+        title.Text = library.Find(current)?.Name ?? library.Appearance.Title;
+        note.Text = library.Appearance.Note != AppearanceSettings.DefaultNote ? library.Appearance.Note : library.Children(current).Any() ? TileLayout ? AppearanceSettings.DefaultNote : "자주 쓰는 것들을 한 번에.\n실행할 아이콘을 선택하세요." : "아직 등록된 항목이 없어요.\n아래 설정 버튼에서 추가해 주세요.";
     }
     internal void ShowNote(Entry entry)
     {
@@ -404,12 +414,16 @@ public sealed partial class LauncherWindow : Window
         return root;
     }
     internal void UpdateBackground(BackgroundSettings settings, string? path, string? entryId = null) { if(entryId==null) { library.Background = settings; backgroundOverride = path; } else { library.Find(entryId)!.Background=settings; slotOverrides[entryId]=path; } Refresh(); }
+    internal void ClearBackgroundOverrides() { slotOverrides.Clear(); }
+    internal void UpdateBackgrounds(BackgroundSettings settings,string? path,IEnumerable<string> ids)
+    { foreach(var id in ids){library.Find(id)!.Background=settings.Copy();slotOverrides[id]=path;}Refresh(); }
+    internal void UpdateAppearance(AppearanceSettings settings) { library.Appearance=settings;Refresh(); }
     internal void UpdateTheme(ThemeSettings theme) { library.Theme=theme;Refresh(); }
     internal Geometry? SlotGeometry(string id) => slotShapes.GetValueOrDefault(id);
     internal void PreviewEntry(Entry entry) { Navigate(entry.ParentId); int index=library.Children(entry.ParentId).ToList().FindIndex(e=>e.Id==entry.Id);page=Math.Max(0,index/Theme.Slots);Refresh();ShowNote(entry); }
     private void CustomizeSlot(Entry entry)
     {
-        CloseFolderPreview(); modal=true;try { var dialog=new BackgroundWindow(store,library,entry){Owner=this};if(dialog.ShowDialog()==true){entry.Background=dialog.Result!;store.Save(library);Refresh();} }finally{modal=false;}
+        CloseFolderPreview(); modal=true;try { var dialog=new BackgroundWindow(store,library,entry){Owner=this};if(dialog.ShowDialog()==true){dialog.ApplyTo(entry);store.Save(library);Refresh();} }finally{modal=false;}
     }
     internal void Open(Entry entry)
     {

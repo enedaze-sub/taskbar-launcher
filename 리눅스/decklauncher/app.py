@@ -197,7 +197,7 @@ class Controller(QObject):
         if self.exec_dialog(d):self.library.find(item_id).update(d.result);self.save()
     def background(self,item_id):
         d=BackgroundDialog(self.window,self.store,self.library,item_id)
-        if self.exec_dialog(d):self.library.find(item_id)['Background']=d.result;self.save()
+        if self.exec_dialog(d):d.apply_to(self.library.find(item_id));self.save()
     def hover(self,item_id,at):
         e=self.library.find(item_id)
         if e and e['IsFolder']:self.schedule_popup(e,at,0)

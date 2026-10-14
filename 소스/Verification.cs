@@ -17,11 +17,51 @@ internal static class SelfTests
         try
         {
             var store = new Store(Path.Combine(output, "test-data-" + Guid.NewGuid().ToString("N")));
+            Check(Store.BackupFileName(new DateTime(2026,10,14,14,15,30))=="DeckLauncher-backup-20261014-141530.zip","Backup default filename includes date and 24-hour time to seconds");
+            var nameStore=new Store(Path.Combine(output,"backup-names-"+Guid.NewGuid().ToString("N")));
+            var nameLibrary=new Library {Entries=new(){new Entry{Name="원래 내용"}}};string nameRequested=Path.Combine(nameStore.DirectoryPath,"same-second.zip");
+            string nameFirst=nameStore.Backup(nameRequested,nameLibrary);byte[] originalBackupBytes=File.ReadAllBytes(nameFirst);nameLibrary.Entries[0].Name="새 내용";string nameSecond=nameStore.Backup(nameRequested,nameLibrary);
+            Check(Path.GetFileName(nameSecond)=="same-second_2.zip" && originalBackupBytes.SequenceEqual(File.ReadAllBytes(nameFirst)),"Duplicate names use a suffix without overwriting the previous backup");
+            Check(Store.ReadBackup(nameSecond).Library.Entries[0].Name=="새 내용","A suffixed backup contains the newly saved data");
+            Directory.CreateDirectory(Path.Combine(nameStore.DirectoryPath,"same-second_3.zip"));string nameFourth=nameStore.Backup(nameRequested,nameLibrary);Check(Path.GetFileName(nameFourth)=="same-second_4.zip","Backup filenames skip both existing files and directory names");
             var lib = store.Load(); Check(lib.Entries.Count == 0, "First run creates an empty library");
             Check(!lib.WheelDialEnabled,"Wheel dial is disabled by default for new libraries");
             string legacyFile = Path.Combine(store.DirectoryPath, "legacy.json");
             File.WriteAllText(legacyFile, "{\"Version\":1,\"Entries\":[{\"Id\":\"legacy\",\"Name\":\"기존 항목\"}]}");
             Check(Store.Read(legacyFile).Find("legacy")?.Note == "", "Previous library files remain compatible without note fields");
+            var oldAppearance = Store.Read(legacyFile);
+            Check(oldAppearance.Appearance.Title=="나의 바로가기" && oldAppearance.Appearance.Opacity==1 && oldAppearance.Find("legacy")!.Opacity==1,"Legacy libraries get opaque appearance defaults without changing entries");
+            var appearanceLib = new Library { Appearance=new AppearanceSettings {Title="내 공간",Note="직접 작성한 문구\n한 줄 더",Opacity=.55},Entries=new(){new Entry{Name="테스트",Opacity=.35}} };
+            var appearanceStore = new Store(Path.Combine(output,"appearance-test"));appearanceStore.Save(appearanceLib);
+            var appearanceRead=appearanceStore.Load();Check(appearanceRead.Appearance.Title=="내 공간" && appearanceRead.Appearance.Note.Contains("한 줄 더") && appearanceRead.Entries[0].Opacity==.35,"Custom wording and per-entry opacity survive save/load");
+            string appearanceBackup=Path.Combine(output,"appearance-backup.zip");appearanceStore.Backup(appearanceBackup,appearanceLib);var appearanceRestored=appearanceStore.Restore(Store.ReadBackup(appearanceBackup));
+            Check(appearanceRestored.Appearance.Opacity==.55 && appearanceRestored.Entries[0].Opacity==.35,"Backups retain appearance and slot opacity");
+            foreach(double value in new[]{0.0,1.2,double.NaN}) {bool opacityRejected=false;try{new AppearanceSettings {Opacity=value}.Validate();}catch(InvalidDataException){opacityRejected=true;}Check(opacityRejected,"Invalid whole-launcher opacity rejected: "+value);}
+            bool badSlotOpacity=false;try{new Library {Entries=new(){new Entry{Name="오류",Opacity=.1}}}.Validate();}catch(InvalidDataException){badSlotOpacity=true;}Check(badSlotOpacity,"Invalid slot opacity is rejected");
+            new AppearanceSettings {Title="",Note=""}.Validate();bool longNote=false;try{new AppearanceSettings {Note=new string('가',301)}.Validate();}catch(InvalidDataException){longNote=true;}Check(longNote,"Empty wording is supported and excessive note length is rejected");
+            var batchLibrary=new Library();var batchFolder=new Entry{Name="폴더",IsFolder=true};var batchNested=new Entry{Name="하위",IsFolder=true,ParentId=batchFolder.Id};var batchChild=new Entry{Name="앱",ParentId=batchNested.Id,Opacity=.4,Background=new BackgroundSettings{ImageFile="old.png"}};batchLibrary.Entries.AddRange(new[]{batchFolder,batchNested,batchChild});
+            Check(batchLibrary.BackgroundTargets(batchFolder.Id,"level").Count==1 && batchLibrary.BackgroundTargets(batchFolder.Id,"tree").Count==2,"Batch scopes distinguish direct children and descendants");
+            batchLibrary.ApplyBackgrounds(new[]{batchNested.Id,batchChild.Id},null,1.7);Check(batchChild.Background.ImageFile=="old.png" && batchChild.Opacity==1.7,"Opacity-only batch preserves existing images");
+            batchLibrary.ApplyBackgrounds(new[]{batchNested.Id,batchChild.Id},new BackgroundSettings{ImageFile="shared.png"},null);batchNested.Background.Zoom=2;Check(batchChild.Background.Zoom==1 && batchChild.Opacity==1.7,"Batch images use independent settings without changing opacity");
+            bool badBatch=false;try{batchLibrary.ApplyBackgrounds(new[]{batchChild.Id,"missing"},null,.2);}catch(InvalidDataException){badBatch=true;}Check(badBatch && batchChild.Opacity==1.7,"Invalid batch targets cannot cause partial changes");
+            var densityDialog=new BackgroundWindow(store,batchLibrary,batchChild){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};densityDialog.Show();densityDialog.UpdateLayout();var densitySlider=Find<Slider>(densityDialog).First(t=>t.Minimum==-100);densitySlider.Value=-80;Check(densityDialog.ResultOpacity==1.8 && batchChild.Opacity==1.7,"Negative slot density previews inside background settings without mutating originals");SaveBulkSnapshot(densityDialog,Path.Combine(output,"칸-배경-투명도.png"));densityDialog.Close();
+            var batchDialog=new BackgroundWindow(store,batchLibrary,null,true,batchFolder.Id){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};batchDialog.Show();batchDialog.UpdateLayout();Find<Slider>(batchDialog).First(t=>t.Minimum==-100).Value=-60;batchDialog.UpdateLayout();SaveBulkSnapshot(batchDialog,Path.Combine(output,"칸-배경-일괄.png"));batchDialog.Close();
+            var separateEntry=new Entry{Name="독립 투명도",Target="https://example.com",Note="메모 보존",SeparateOpacity=true,Opacity=.2,IconOpacity=.7,TextOpacity=.4};
+            var separateLib=new Library{Entries=new(){separateEntry}};var separateStore=new Store(Path.Combine(output,"separate-data"));separateStore.Save(separateLib);
+            Check(separateStore.Load().Entries[0].SeparateOpacity && separateStore.Load().Entries[0].IconOpacity==.7 && separateStore.Load().Entries[0].TextOpacity==.4,"Separate mode and foreground alpha persist through save/load");
+            string separateBackup=separateStore.Backup(Path.Combine(output,"separate.zip"),separateLib);var restoredSeparate=separateStore.Restore(Store.ReadBackup(separateBackup));Check(restoredSeparate.Entries[0].TextOpacity==.4 && restoredSeparate.Entries[0].SeparateOpacity,"Backup retains independent opacity");
+            Check(!oldAppearance.Find("legacy")!.SeparateOpacity && oldAppearance.Find("legacy")!.IconOpacity==1,"Old entries retain linked opacity defaults");
+            bool rejectedSeparate=false;try{separateLib.ApplyBackgrounds(new[]{separateEntry.Id},null,.6,true,double.NaN,.8);}catch(InvalidDataException){rejectedSeparate=true;}Check(rejectedSeparate && separateEntry.Opacity==.2 && separateEntry.TextOpacity==.4,"Invalid independent batch alpha cannot partially mutate entries");
+            foreach(var design in new[]{"classic","cat","neon","paper","modern","space"})
+            {
+                separateLib.Theme.Design=design;var separateWin=new LauncherWindow(separateStore,separateLib,true);Check(separateWin.SlotOpacity(separateEntry.Id)==1 && separateWin.SlotLayerOpacity(separateEntry.Id,0)==.2 && separateWin.SlotLayerOpacity(separateEntry.Id,1)==.7 && separateWin.SlotLayerOpacity(separateEntry.Id,2)==.4,"Independent background/icon/text layer alpha: "+design);
+                var renderedContents=(Canvas)separateWin.Slot(separateEntry.Id)!.Content;renderedContents.Measure(new Size(920,454));renderedContents.Arrange(new Rect(0,0,920,454));var fullAlpha=MaximumAlpha(renderedContents);
+                renderedContents.Opacity=.2;Check(fullAlpha>100 && MaximumAlpha(renderedContents)<52,"Actual WPF composition preserves foreground alpha, then applies group alpha: "+design);separateWin.Close();
+            }
+            var separateDialog=new BackgroundWindow(separateStore,separateLib,separateEntry){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};separateDialog.Show();var modeBox=Find<CheckBox>(separateDialog).First(c=>c.Content?.ToString()?.StartsWith("배경 · 아이콘")==true);Find<Slider>(separateDialog).First(c=>c.Tag?.ToString()=="icon-opacity").Value=20;Find<Slider>(separateDialog).First(c=>c.Tag?.ToString()=="text-opacity").Value=55;
+            Check(separateDialog.ResultSeparateOpacity && separateDialog.ResultIconOpacity==.8 && separateDialog.ResultTextOpacity==.45 && separateEntry.IconOpacity==.7,"Independent preview does not mutate original entries");SaveBulkSnapshot(separateDialog,Path.Combine(output,"칸-독립-투명도.png"));modeBox.IsChecked=false;Check(!separateDialog.ResultSeparateOpacity && !Find<Slider>(separateDialog).First(c=>c.Tag?.ToString()=="icon-opacity").IsEnabled,"Relink restores group controls while preserving independent slider values");separateDialog.Close();
+            separateLib.ApplyBackgrounds(new[]{separateEntry.Id},null,.5,false,.8,.45);var linkedWin=new LauncherWindow(separateStore,separateLib,true);Check(linkedWin.SlotOpacity(separateEntry.Id)==.5 && linkedWin.SlotLayerOpacity(separateEntry.Id,1)==1,"Linked mode keeps original group opacity behavior");linkedWin.Close();
+            separateLib.ApplyBackgrounds(new[]{separateEntry.Id},new BackgroundSettings(),null);Check(!separateEntry.SeparateOpacity && separateEntry.IconOpacity==.8 && separateEntry.TextOpacity==.45,"Image-only application preserves independent mode and values");
             var a = new Entry { Name = "게임", IsFolder = true };
             var b = new Entry { Name = "도구", IsFolder = true, ParentId = a.Id };
             var c = new Entry { Name = "하위 폴더", IsFolder = true, ParentId = b.Id };
@@ -83,6 +123,16 @@ internal static class SelfTests
             Check(missingRejected, "Missing launch targets produce a helpful error");
 
             var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            var appearancePreview=new LauncherWindow(appearanceStore,appearanceLib,true);
+            Check(appearancePreview.DisplayedTitle=="내 공간" && appearancePreview.DisplayedNote==appearanceLib.Appearance.Note,"Custom central wording is actually rendered");
+            Check(appearancePreview.RenderedOpacity==.55 && appearancePreview.SlotOpacity(appearanceLib.Entries[0].Id)==.35,"Whole launcher and entry visual groups apply separate opacity");
+            appearancePreview.ShowNote(appearanceLib.Entries[0]);appearancePreview.Navigate(null);Check(appearancePreview.DisplayedNote==appearanceLib.Appearance.Note,"Hover note returns to the custom central wording");
+            var wordingDialog=new AppearanceWindow(appearanceStore,appearanceLib){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};wordingDialog.Show();wordingDialog.UpdateLayout();var wordingBoxes=Find<TextBox>(wordingDialog).ToList();wordingBoxes[0].Text="미리보기만";wordingDialog.RefreshPreview();
+            Check(wordingDialog.Draft.Title=="미리보기만" && wordingDialog.Preview.RenderedOpacity==.55,"Wording dialog previews live opacity changes");
+            Check(appearanceLib.Appearance.Title=="내 공간" && appearanceLib.Appearance.Opacity==.55,"Preview edits remain isolated until Apply");wordingBoxes[0].Text="오늘의 작은 작업실";wordingBoxes[1].Text="필요한 앱만, 가볍게 한 번에.\n오늘도 천천히 시작해요.";wordingDialog.UpdateLayout();
+            var appearanceBitmap=new RenderTargetBitmap((int)Math.Ceiling(wordingDialog.ActualWidth),(int)Math.Ceiling(wordingDialog.ActualHeight),96,96,PixelFormats.Pbgra32);appearanceBitmap.Render(wordingDialog);var appearanceEncoder=new PngBitmapEncoder();appearanceEncoder.Frames.Add(BitmapFrame.Create(appearanceBitmap));using(var appearanceStream=File.Create(Path.Combine(output,"문구-투명도-설정.png")))appearanceEncoder.Save(appearanceStream);
+            wordingDialog.Close();appearancePreview.Close();
+
             var win = new LibraryWindow(store, lib) { ShowActivated = false, Left = -20000, Top = -20000 };
             win.Show(); win.UpdateLayout();
             void SetWheel(bool value)
@@ -205,9 +255,11 @@ internal static class SelfTests
             var slotEditor=new BackgroundWindow(store,lib,item){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};slotEditor.SelectImage(backgroundSource);var slotOldZoom=item.Background.Zoom;slotEditor.Draft.Zoom=2.4;Check(item.Background.Zoom==slotOldZoom,"Per-slot background preview leaves the entry unchanged until applying");
             app.Dispatcher.BeginInvoke(new Action(()=>{Find<Slider>(slotEditor).First(x=>x.Minimum==1).Value=2.6;Find<Button>(slotEditor).First(x=>x.Content as string=="적용").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));}));
             Check(slotEditor.ShowDialog()==true && slotEditor.Result!.Zoom==2.6 && slotEditor.Result.ImageFile!=item.Background.ImageFile && lib.Background.Zoom==oldZoom,"Per-slot Apply saves an independent image and crop without changing the overall background");
+            item.SeparateOpacity=true;item.IconOpacity=.72;item.TextOpacity=.48;
             var entryEditor=new EditorWindow(store,item){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};
             app.Dispatcher.BeginInvoke(new Action(()=>Find<Button>(entryEditor).First(x=>x.Content as string=="저장").RaiseEvent(new RoutedEventArgs(Button.ClickEvent))));
             Check(entryEditor.ShowDialog()==true && entryEditor.Result!.Background.ImageFile==item.Background.ImageFile && entryEditor.Result.Background.Zoom==item.Background.Zoom,"Editing an entry retains its per-slot background");
+            Check(entryEditor.Result!.SeparateOpacity && entryEditor.Result.IconOpacity==.72 && entryEditor.Result.TextOpacity==.48,"Editing name, notes or icon preserves independent transparency settings");
             var migratedCustom=new Library {UiRevision=4,Theme=new ThemeSettings {Name="내 커스텀 테마",Accent="#AABBCC"}};
             Check(migratedCustom.ApplyUiUpdate() && migratedCustom.CustomThemes.Count==1 && migratedCustom.CustomThemes[0].Settings.Accent=="#AABBCC" && !migratedCustom.ApplyUiUpdate(),"Migration preserves the previous custom appearance in a separate saved theme exactly once");
             var stable=new Library{UiRevision=3,HideAfterLaunch=true};Check(stable.ApplyUiUpdate() && stable.HideAfterLaunch && stable.UiRevision==6 && !stable.WheelDialEnabled,"Revision five preserves the launch preference and defaults wheel scrolling to disabled");
@@ -308,6 +360,14 @@ internal static class SelfTests
         var frame=new DispatcherFrame();var watch=System.Diagnostics.Stopwatch.StartNew();var timer=new DispatcherTimer {Interval=TimeSpan.FromMilliseconds(15)};
         timer.Tick+=(_,_)=>{if(condition() || watch.ElapsedMilliseconds>1000)frame.Continue=false;};timer.Start();Dispatcher.PushFrame(frame);timer.Stop();
     }
+    private static void SaveBulkSnapshot(Window window,string path)
+    {
+        window.UpdateLayout();var bitmap=new RenderTargetBitmap((int)Math.Ceiling(window.ActualWidth),(int)Math.Ceiling(window.ActualHeight),96,96,PixelFormats.Pbgra32);bitmap.Render(window);var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var stream=File.Create(path);encoder.Save(stream);
+    }
+    private static int MaximumAlpha(Visual visual)
+    {
+        var bitmap=new RenderTargetBitmap(920,454,96,96,PixelFormats.Pbgra32);bitmap.Render(visual);var pixels=new byte[920*454*4];bitmap.CopyPixels(pixels,920*4,0);int maximum=0;for(int i=3;i<pixels.Length;i+=4)maximum=Math.Max(maximum,pixels[i]);return maximum;
+    }
     private static IEnumerable<T> Find<T>(DependencyObject obj) where T : DependencyObject
     {
         for (int i = 0; i < VisualTreeHelper.GetChildrenCount(obj); i++)
@@ -320,7 +380,7 @@ internal static class SelfTests
     {
         target.UpdateLayout();
         Point point=position ?? new Point(target.ActualWidth/2,target.ActualHeight/2);
-        if(position==null && target.Width==920 && target.Content is Canvas canvas) {var shape=canvas.Children.OfType<System.Windows.Shapes.Path>().First();var rect=shape.Data.Bounds;point=new Point(rect.X+rect.Width/2,rect.Y+rect.Height/2);}
+        if(position==null && target.Width==920 && target.Content is Canvas canvas) {var shape=Find<System.Windows.Shapes.Path>(canvas).First();var rect=shape.Data.Bounds;point=new Point(rect.X+rect.Width/2,rect.Y+rect.Height/2);}
         var constructor = typeof(DragEventArgs).GetConstructors(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).First();
         var args = (DragEventArgs)constructor.Invoke(new object[] { new DataObject(LibraryWindow.EntryDragFormat, new[] { id }), DragDropKeyStates.None, DragDropEffects.Move, target, point });
         args.RoutedEvent = DragDrop.DropEvent; target.RaiseEvent(args);
