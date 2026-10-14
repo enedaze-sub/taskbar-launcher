@@ -196,7 +196,7 @@ class BackgroundDialog(Dialog):
         for k,name,lo,hi in [('Zoom','확대',100,400),('OffsetX','가로 위치',-100,100),('OffsetY','세로 위치',-100,100),('Darkness','어둡게',0,85)]:
             s=QSlider(Qt.Horizontal);s.setRange(lo,hi);s.setValue(round(self.result[k]*100));s.valueChanged.connect(lambda v,key=k:self.set_value(key,v/100));form.addRow(name,s);self.sliders[k]=s
         self.canvas.zoomed.connect(lambda d:self.sliders['Zoom'].setValue(self.sliders['Zoom'].value()+d*10))
-        self.opacity=QSlider(Qt.Horizontal);self.opacity.setRange(-100 if item_id or bulk else 0,85 if item_id or bulk else 80);self.opacity.setValue(round((1-self.result_opacity)*100));self.opacity_label=label('')
+        self.opacity=QSlider(Qt.Horizontal);self.opacity.setRange(-100 if item_id or bulk else 0,100);self.opacity.setValue(round((1-self.result_opacity)*100));self.opacity_label=label('')
         form.addRow('칸 전체 / 배경 투명도' if item_id or bulk else '런처 전체 투명도',self.opacity);form.addRow('',self.opacity_label)
         self.opacity.valueChanged.connect(self.set_opacity)
         self.separate=QCheckBox('배경 · 아이콘 · 글자 투명도를 따로 조절')

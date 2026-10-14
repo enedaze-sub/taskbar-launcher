@@ -1,0 +1,44 @@
+[
+  {
+    "Id": "classic",
+    "Name": "기본 부채꼴",
+    "English": "Classic Fan",
+    "Palette": "Mint Night",
+    "Accent": "#6DE0D4"
+  },
+  {
+    "Id": "cat",
+    "Name": "냥냥 포켓",
+    "English": "Kitty Pocket",
+    "Palette": "Peach Cream",
+    "Accent": "#F2879B"
+  },
+  {
+    "Id": "neon",
+    "Name": "사이버 HUD",
+    "English": "Cyber HUD",
+    "Palette": "Neon Mint",
+    "Accent": "#35F0FF"
+  },
+  {
+    "Id": "paper",
+    "Name": "다이어리 스크랩",
+    "English": "Diary Scrapbook",
+    "Palette": "Cream Paper",
+    "Accent": "#E0786A"
+  },
+  {
+    "Id": "modern",
+    "Name": "글래스 도크",
+    "English": "Glass Dock",
+    "Palette": "Cloud White",
+    "Accent": "#4F74F7"
+  },
+  {
+    "Id": "space",
+    "Name": "별빛 궤도",
+    "English": "Starlight Orbit",
+    "Palette": "Starlight Purple",
+    "Accent": "#FFD36E"
+  }
+]

@@ -24,11 +24,11 @@ class AppearanceTests(unittest.TestCase):
         self.store.save(self.lib);self.assertEqual(self.store.load().data,self.lib.data)
         backup=Path(self.tmp.name)/'backup.zip';self.store.backup(backup,self.lib);self.assertEqual(self.store.restore(backup).data,self.lib.data)
     def test_03_invalid_global_opacity_rejected(self):
-        for value in (0,1.1,float('nan'),True,'0.5'):
+        for value in (-.01,1.1,float('nan'),True,'0.5'):
             data=copy.deepcopy(self.lib.data);data['Appearance']['Opacity']=value
             with self.assertRaises(ValueError):Library(data)
     def test_04_invalid_slot_opacity_rejected(self):
-        for value in (.1,2.1,float('inf'),False):
+        for value in (-.01,2.1,float('inf'),False):
             data=copy.deepcopy(self.lib.data);data['Entries'][0]['Opacity']=value
             with self.assertRaises(ValueError):Library(data)
     def test_05_text_limits_and_empty_supported(self):

@@ -137,7 +137,15 @@ class Controller(QObject):
         self.hide()
     def save(self):
         self.store.save(self.library);self.canvas.library=self.library;self.canvas.refresh();self.window.update_mask()
+    def restore_transparency_settings(self):
+        if self.modal:
+            for w in self.app.topLevelWidgets():
+                if w!=self.window and w.isVisible():w.raise_();w.activateWindow();return
+            return
+        self.manage()
     def reveal(self):
+        if self.library.data["Appearance"]["Opacity"]==0:
+            self.restore_transparency_settings();return
         self.close_popups();screen=QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen();area=screen.availableGeometry()
         w=min(920,area.width()-16);h=round(w*454/920);h=min(h,area.height()-16);w=round(h*920/454)
         self.window.resize(w,h);place=self.library.data['MacPlacement']
@@ -155,6 +163,8 @@ class Controller(QObject):
         self.window.move(round(x),max(area.top(),min(round(y),area.bottom()+1-h)))
         self.window.showNormal();self.window.raise_();self.window.activateWindow();self.canvas.setFocus()
     def toggle(self):
+        if self.library.data["Appearance"]["Opacity"]==0:
+            self.restore_transparency_settings();return
         if self.modal:
             for w in self.app.topLevelWidgets():
                 if isinstance(w,Settings) and w.isVisible():w.raise_();w.activateWindow();return

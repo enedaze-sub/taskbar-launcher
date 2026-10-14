@@ -119,12 +119,12 @@ class Library:
             for k in ('Target','Arguments','WorkingDirectory','Note'):
                 if not isinstance(e[k],str): raise ValueError('항목 형식이 잘못되었습니다.')
             safe_image(e['IconFile']); validate_background(e['Background'])
-            if not check_number(e['Opacity'],.15,2):raise ValueError('칸의 투명도 값이 잘못되었습니다.')
+            if not check_number(e['Opacity'],0,2):raise ValueError('칸의 투명도 값이 잘못되었습니다.')
             if not isinstance(e['SeparateOpacity'],bool) or any(not check_number(e[k],0,1) for k in ('IconOpacity','TextOpacity')):raise ValueError('아이콘 또는 글자 투명도가 잘못되었습니다.')
         for e in self.entries:
             if not self.can_move(e['Id'],e['ParentId']): raise ValueError('폴더 구조가 잘못되었습니다.')
         a=self.data['Appearance']
-        if not isinstance(a.get('Title'),str) or len(a['Title'])>60 or not isinstance(a.get('Note'),str) or len(a['Note'])>300 or not check_number(a.get('Opacity'),.2,1):raise ValueError('문구 또는 전체 투명도 값이 잘못되었습니다.')
+        if not isinstance(a.get('Title'),str) or len(a['Title'])>60 or not isinstance(a.get('Note'),str) or len(a['Note'])>300 or not check_number(a.get('Opacity'),0,1):raise ValueError('문구 또는 전체 투명도 값이 잘못되었습니다.')
         validate_theme(self.theme); validate_background(self.data['Background'])
         for custom in self.data['CustomThemes']: validate_theme(custom['Settings'])
         placement=self.data['MacPlacement']
@@ -160,7 +160,7 @@ class Library:
         chosen=[self.find(i) for i in dict.fromkeys(ids)]
         if not chosen or any(e is None for e in chosen):raise ValueError('적용할 칸이 없습니다.')
         if settings is not None:validate_background(settings)
-        if opacity is not None and not check_number(opacity,.15,2):raise ValueError('칸 투명도가 잘못되었습니다.')
+        if opacity is not None and not check_number(opacity,0,2):raise ValueError('칸 투명도가 잘못되었습니다.')
         if separate_opacity is not None and not isinstance(separate_opacity,bool):raise ValueError('잘못된 투명도 조절 방식입니다.')
         if any(v is not None and not check_number(v,0,1) for v in (icon_opacity,text_opacity)):raise ValueError('아이콘 또는 글자 투명도가 잘못되었습니다.')
         for e in chosen:

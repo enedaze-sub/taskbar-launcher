@@ -13,7 +13,7 @@ public sealed class AppearanceSettings
     public AppearanceSettings Copy() => new() { Title = Title, Note = Note, Opacity = Opacity };
     public void Validate()
     {
-        if (Title == null || Title.Length > 60 || Note == null || Note.Length > 300 || !double.IsFinite(Opacity) || Opacity < .2 || Opacity > 1) throw new InvalidDataException("중앙 문구 또는 전체 투명도 값이 잘못되었습니다.");
+        if (Title == null || Title.Length > 60 || Note == null || Note.Length > 300 || !double.IsFinite(Opacity) || Opacity < 0 || Opacity > 1) throw new InvalidDataException("중앙 문구 또는 전체 투명도 값이 잘못되었습니다.");
     }
 }
 
@@ -117,7 +117,7 @@ public sealed class Library
     public int ApplyBackgrounds(IEnumerable<string> ids,BackgroundSettings? settings,double? opacity,bool? separateOpacity=null,double? iconOpacity=null,double? textOpacity=null)
     {
         var chosen=ids.Distinct().Select(Find).ToList();if(chosen.Count==0 || chosen.Any(e=>e==null))throw new InvalidDataException("적용할 칸이 없습니다.");
-        settings?.Validate();if(opacity is double value && (!double.IsFinite(value) || value<.15 || value>2))throw new InvalidDataException("칸의 투명도가 잘못되었습니다.");
+        settings?.Validate();if(opacity is double value && (!double.IsFinite(value) || value<0 || value>2))throw new InvalidDataException("칸의 투명도가 잘못되었습니다.");
         if(new[]{iconOpacity,textOpacity}.Any(v=>v.HasValue && (!double.IsFinite(v.Value) || v<0 || v>1)))throw new InvalidDataException("아이콘 또는 글자 투명도가 잘못되었습니다.");
         foreach(var e in chosen){if(separateOpacity.HasValue)e!.SeparateOpacity=separateOpacity.Value;if(iconOpacity.HasValue)e!.IconOpacity=iconOpacity.Value;if(textOpacity.HasValue)e!.TextOpacity=textOpacity.Value;if(settings!=null)e!.Background=settings.Copy();if(opacity!=null)e!.Opacity=opacity.Value;}return chosen.Count;
     }
@@ -143,7 +143,7 @@ public sealed class Library
         foreach (var e in Entries)
         {
             e.Background ??= new(); e.Background.Validate();
-            if (!double.IsFinite(e.Opacity) || e.Opacity < .15 || e.Opacity > 2) throw new InvalidDataException("칸의 투명도 값이 잘못되었습니다.");
+            if (!double.IsFinite(e.Opacity) || e.Opacity < 0 || e.Opacity > 2) throw new InvalidDataException("칸의 투명도 값이 잘못되었습니다.");
             if(new[]{e.IconOpacity,e.TextOpacity}.Any(v=>!double.IsFinite(v) || v<0 || v>1))throw new InvalidDataException("아이콘 또는 글자 투명도가 잘못되었습니다.");
             if (string.IsNullOrWhiteSpace(e.Id) || !ids.Add(e.Id)) throw new InvalidDataException("항목 ID가 중복되었거나 비어 있습니다.");
             if (string.IsNullOrWhiteSpace(e.Name)) throw new InvalidDataException("이름이 없는 항목이 있습니다.");

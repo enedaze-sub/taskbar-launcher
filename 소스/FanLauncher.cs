@@ -80,7 +80,7 @@ public sealed partial class LauncherWindow : Window
         if (previewMode) KeyboardNavigation.SetTabNavigation(fan, KeyboardNavigationMode.None);
         SourceInitialized += (_, _) => { Native.ConfigureTaskbar(this);if(!previewMode && ShowActivated)clickWatcher=new OutsideClickWatcher(point=>Dispatcher.BeginInvoke(new Action(()=>HandleScreenClick(point)))); };
         Closed+=(_,_)=>clickWatcher?.Dispose();
-        Loaded += async (_, _) => { if (!previewMode && ShowActivated) { await PositionAtTaskbarAsync(); AnimateOpen(); } };
+        Loaded += async (_, _) => { if (!previewMode && ShowActivated) { if(library.Appearance.Opacity==0) _ = Dispatcher.BeginInvoke(new Action(Manage)); await PositionAtTaskbarAsync(); AnimateOpen(); } };
         Activated += async (_, _) => { if (!previewMode && ShowActivated && !modal) await PositionAtTaskbarAsync(); };
         DpiChanged += async (_, _) => { if (!previewMode && ShowActivated && IsVisible && !modal) await PositionAtTaskbarAsync(); };
         if (!previewMode) Closed += (_, _) => Application.Current.Shutdown();
@@ -135,6 +135,7 @@ public sealed partial class LauncherWindow : Window
     }
     public void Reveal()
     {
+        if(!previewMode && library.Appearance.Opacity==0 && !modal){Manage();return;}
         if (modal) { foreach (Window window in OwnedWindows) window.Activate(); return; }
         if (IsVisible && IsActive) { Hide(); return; }
         Show(); WindowState = WindowState.Normal; Activate(); Focus(); _ = PositionAtTaskbarAsync(); AnimateOpen();

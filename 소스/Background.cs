@@ -59,7 +59,7 @@ public sealed class BackgroundWindow : Window
     private readonly Slider iconOpacity = new() {Tag="icon-opacity",Minimum=0,Maximum=100,TickFrequency=1,IsSnapToTickEnabled=true};
     private readonly Slider textOpacity = new() {Tag="text-opacity",Minimum=0,Maximum=100,TickFrequency=1,IsSnapToTickEnabled=true};
     private readonly TextBlock detailLabel=UI.Text("",12,UI.Muted);
-    private readonly Slider opacity = new() { Minimum=-100,Maximum=85,TickFrequency=1,IsSnapToTickEnabled=true };
+    private readonly Slider opacity = new() { Minimum=-100,Maximum=100,TickFrequency=1,IsSnapToTickEnabled=true };
     private readonly TextBlock opacityLabel = UI.Text("",12,UI.Muted);
     private Rect cropBounds;
     private readonly BackgroundSettings draft;
@@ -111,7 +111,7 @@ public sealed class BackgroundWindow : Window
         Grid.SetRow(previewArea, 1); main.Children.Add(previewArea);
         var controls = new Grid { Margin = new Thickness(0, 14, 0, 0) }; controls.ColumnDefinitions.Add(new()); controls.ColumnDefinitions.Add(new()); controls.RowDefinitions.Add(new()); controls.RowDefinitions.Add(new());controls.RowDefinitions.Add(new());controls.RowDefinitions.Add(new(){Height=GridLength.Auto});controls.RowDefinitions.Add(new(){Height=GridLength.Auto}); Grid.SetRow(controls, 2);
         AddSlider(controls, "확대 / 축소", zoom, 0, 0); AddSlider(controls, "배경 어둡게", darkness, 1, 0); AddSlider(controls, "가로 위치", horizontal, 0, 1); AddSlider(controls, "세로 위치", vertical, 1, 1);
-        if(entry==null && !bulk){opacity.Minimum=0;opacity.Maximum=80;}opacity.Value=Math.Round((1-(entry?.Opacity ?? library.Appearance.Opacity))*100);AddSlider(controls,entry!=null || bulk?"칸의 투명도 · 음수는 바탕 강화":"런처 전체 투명도",opacity,0,2);Grid.SetColumn(opacityLabel,1);Grid.SetRow(opacityLabel,2);controls.Children.Add(opacityLabel);
+        if(entry==null && !bulk){opacity.Minimum=0;opacity.Maximum=100;}opacity.Value=Math.Round((1-(entry?.Opacity ?? library.Appearance.Opacity))*100);AddSlider(controls,entry!=null || bulk?"칸의 투명도 · 음수는 바탕 강화":"런처 전체 투명도",opacity,0,2);Grid.SetColumn(opacityLabel,1);Grid.SetRow(opacityLabel,2);controls.Children.Add(opacityLabel);
         if(entry!=null || bulk)
         {
             separate.IsChecked=entry?.SeparateOpacity ?? false;iconOpacity.Value=Math.Round((1-(entry?.IconOpacity ?? 1))*100);textOpacity.Value=Math.Round((1-(entry?.TextOpacity ?? 1))*100);
