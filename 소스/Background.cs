@@ -87,7 +87,7 @@ public sealed class BackgroundWindow : Window
 
     public BackgroundWindow(Store store, Library library, Entry? entry = null, bool bulk = false, string? parentId = null)
     {
-        this.store = store;this.bulk=bulk;this.parentId=parentId;sourceLibrary=System.Text.Json.JsonSerializer.Deserialize<Library>(System.Text.Json.JsonSerializer.Serialize(library))!;if(bulk)entry=sourceLibrary.Entries.FirstOrDefault(); entryId = entry?.Id; draft = (entry?.Background ?? library.Background).Copy(); UI.Theme(this,library.Theme);
+        this.store = store;this.bulk=bulk;this.parentId=parentId;sourceLibrary=System.Text.Json.JsonSerializer.Deserialize<Library>(System.Text.Json.JsonSerializer.Serialize(library))!;if(bulk)entry=sourceLibrary.Entries.FirstOrDefault(); entryId = entry?.Id; draft = (entry?.Background ?? library.Background).Copy(); UI.Theme(this,library.InterfaceTheme);
         Title = bulk ? "칸 배경 일괄 설정" : entry == null ? "런처 배경 꾸미기" : entry.Name + " · 칸 배경 꾸미기"; Width = 1020; Height = bulk ? 980 : entry==null ? 810 : 950; MinWidth = 740; MinHeight = 680; Topmost = false; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var area = SystemParameters.WorkArea; Width = Math.Min(Width, area.Width - 24); Height = Math.Min(Height, area.Height - 30);
         var main = new Grid { Margin = new Thickness(24) }; main.RowDefinitions.Add(new() { Height = GridLength.Auto }); main.RowDefinitions.Add(new()); main.RowDefinitions.Add(new() { Height = GridLength.Auto }); main.RowDefinitions.Add(new() { Height = GridLength.Auto }); Content = main;
@@ -112,6 +112,7 @@ public sealed class BackgroundWindow : Window
         var controls = new Grid { Margin = new Thickness(0, 14, 0, 0) }; controls.ColumnDefinitions.Add(new()); controls.ColumnDefinitions.Add(new()); controls.RowDefinitions.Add(new()); controls.RowDefinitions.Add(new());controls.RowDefinitions.Add(new());controls.RowDefinitions.Add(new(){Height=GridLength.Auto});controls.RowDefinitions.Add(new(){Height=GridLength.Auto}); Grid.SetRow(controls, 2);
         AddSlider(controls, "확대 / 축소", zoom, 0, 0); AddSlider(controls, "배경 어둡게", darkness, 1, 0); AddSlider(controls, "가로 위치", horizontal, 0, 1); AddSlider(controls, "세로 위치", vertical, 1, 1);
         if(entry==null && !bulk){opacity.Minimum=0;opacity.Maximum=100;}opacity.Value=Math.Round((1-(entry?.Opacity ?? library.Appearance.Opacity))*100);AddSlider(controls,entry!=null || bulk?"칸의 투명도 · 음수는 바탕 강화":"런처 전체 투명도",opacity,0,2);Grid.SetColumn(opacityLabel,1);Grid.SetRow(opacityLabel,2);controls.Children.Add(opacityLabel);
+        if(entry==null && !bulk){var recovery=UI.Text("100%라서 런처가 안 보이면 작업표시줄 아이콘을 한 번 더 누르세요. 설정창이 열립니다.",12,UI.Muted);Grid.SetRow(recovery,3);Grid.SetColumnSpan(recovery,2);controls.Children.Add(recovery);}
         if(entry!=null || bulk)
         {
             separate.IsChecked=entry?.SeparateOpacity ?? false;iconOpacity.Value=Math.Round((1-(entry?.IconOpacity ?? 1))*100);textOpacity.Value=Math.Round((1-(entry?.TextOpacity ?? 1))*100);

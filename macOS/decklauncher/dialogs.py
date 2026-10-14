@@ -10,11 +10,11 @@ from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QLabel,QPushButto
     QScrollArea,QWidget,QGridLayout,QSlider,QColorDialog,QFontComboBox,QSpinBox,QDoubleSpinBox,QMenu)
 from .model import Library,COLORS,DESIGNS,entry,background,windows_target,appearance,backup_name
 from .launch import applications,import_path
-from .view import Canvas,MIME,mix
+from .view import Canvas,MIME,mix,contrast_text
 from .fonts import resolved
 
 def style(widget,lib):
-    t=lib.theme;b,s,a,x=[t[k] for k in ('Background','Surface','Accent','Text')]
+    t=lib.interface_theme;b,s,a,x=[t[k] for k in ('Background','Surface','Accent','Text')]
     hover=mix(s,a,.2).name();border=mix(s,x,.2).name();muted=mix(x,b,.25).name()
     family=resolved(lib)
     widget.setFont(QFont(family,11))
@@ -25,9 +25,9 @@ def style(widget,lib):
         QLabel[muted="true"] {{color:{muted};}}
         QPushButton,QToolButton {{background:{s};border:1px solid {border};border-radius:12px;padding:9px 14px;}}
         QPushButton:hover,QToolButton:hover {{background:{hover};border-color:{a};}}
-        QPushButton:pressed {{background:{a};color:{b};}}
+        QPushButton:pressed {{background:{a};color:{contrast_text(a).name()};}}
         QPushButton:disabled {{color:{muted};}}
-        QPushButton[primary="true"] {{background:{a};color:{b};font-weight:bold;}}
+        QPushButton[primary="true"] {{background:{a};color:{contrast_text(a).name()};font-weight:bold;}}
         QLineEdit,QTextEdit,QComboBox,QSpinBox,QDoubleSpinBox {{background:{s};border:1px solid {border};border-radius:9px;padding:8px;selection-background-color:{a};selection-color:{b};}}
         QComboBox::drop-down {{border:none;width:26px;}}
         QComboBox QAbstractItemView,QMenu {{background:{s};border:1px solid {border};selection-background-color:{hover};padding:6px;}}
@@ -89,7 +89,7 @@ class Help(Dialog):
             ('02  Finder에서 끌어다 놓기','Finder의 응용 프로그램 폴더에서 .app을 설정 목록에 끌어다 놓으세요. 문서나 폴더, 실행 가능한 스크립트도 등록할 수 있습니다.'),
             ('03  직접 경로 입력하기','예: /Applications/Safari.app 또는 /System/Applications/Calculator.app\n웹 주소(https://...)나 명령 이름(python3)도 사용할 수 있어요. 실행 인수는 아래 별도 칸에 입력하세요.')]:
             card=QWidget();box=QVBoxLayout(card);box.setContentsMargins(18,12,18,12)
-            card.setStyleSheet('QWidget {background:'+lib.theme['Surface']+';border-radius:14px;}')
+            card.setStyleSheet('QWidget {background:'+lib.interface_theme['Surface']+';border-radius:14px;}')
             box.addWidget(label(title,True));box.addWidget(label(text));self.body.addWidget(card)
         self.body.addWidget(label('Windows·리눅스 백업을 가져온 항목은 실행 대상을 Mac 앱으로 다시 연결하세요. 폴더·아이콘·메모는 그대로 사용할 수 있습니다. 앱을 이동하거나 이름을 바꿨다면 편집에서 경로를 고쳐 주세요.',muted=True))
         self.body.addWidget(button('알겠어요',self.accept,True))
@@ -200,6 +200,7 @@ class BackgroundDialog(Dialog):
         self.canvas.zoomed.connect(lambda d:self.sliders['Zoom'].setValue(self.sliders['Zoom'].value()+d*10))
         self.opacity=QSlider(Qt.Horizontal);self.opacity.setRange(-100 if item_id or bulk else 0,100);self.opacity.setValue(round((1-self.result_opacity)*100));self.opacity_label=label('')
         form.addRow('칸 전체 / 배경 투명도' if item_id or bulk else '런처 전체 투명도',self.opacity);form.addRow('',self.opacity_label)
+        if not item_id and not bulk:form.addRow('',label('100%라서 런처가 안 보이면 작업표시줄/Dock 아이콘을 한 번 더 누르세요. 설정창이 열립니다.',muted=True))
         self.opacity.valueChanged.connect(self.set_opacity)
         self.separate=QCheckBox('배경 · 아이콘 · 글자 투명도를 따로 조절')
         current=self.draft.find(self.item_id)
@@ -213,7 +214,7 @@ class BackgroundDialog(Dialog):
                 slider.valueChanged.connect(self.refresh_preview)
             self.separate.toggled.connect(self.refresh_preview)
 
-        controls_widget=QWidget();controls_widget.setObjectName("background-controls");controls_widget.setStyleSheet("QWidget#background-controls {background:"+lib.theme["Background"]+";}");controls_layout=QVBoxLayout(controls_widget);controls_layout.setContentsMargins(0,0,12,0);controls_layout.addLayout(form)
+        controls_widget=QWidget();controls_widget.setObjectName("background-controls");controls_widget.setStyleSheet("QWidget#background-controls {background:"+lib.interface_theme["Background"]+";}");controls_layout=QVBoxLayout(controls_widget);controls_layout.setContentsMargins(0,0,12,0);controls_layout.addLayout(form)
         controls_layout.addWidget(label('기본은 칸 전체를 함께 조절합니다. 별도 조절을 켜면 칸 슬라이더는 배경에만 적용됩니다. 음수는 바탕을 더 진하게 만듭니다. -100%는 칸 바탕을 최대한 가립니다. 전체 런처 투명도도 함께 적용됩니다.',muted=True))
         control_scroll=QScrollArea();control_scroll.setWidgetResizable(True);control_scroll.setFrameShape(QScrollArea.NoFrame);control_scroll.setMinimumHeight(180);control_scroll.setMaximumHeight(330);control_scroll.setWidget(controls_widget);self.body.addWidget(control_scroll)
         if bulk:
@@ -273,6 +274,33 @@ class BackgroundDialog(Dialog):
         scale=max(bounds.width()/pix.width(),bounds.height()/pix.height())*d['Zoom']
         for k,delta,excess in [('OffsetX',dx/self.canvas.scale(),pix.width()*scale-bounds.width()),('OffsetY',dy/self.canvas.scale(),pix.height()*scale-bounds.height())]:
             if excess>1:self.sliders[k].setValue(round(max(-1,min(1,d[k]+delta*2/excess))*100))
+
+class SettingsColorsDialog(Dialog):
+    def __init__(self,parent,lib):
+        super().__init__(parent,lib,'설정창 색상',830,650);self.draft=Library(lib.data);self.result=copy.deepcopy(lib.data['SettingsColors'])
+        if not self.result['Initialized']:
+            for k in ('Background','Surface','Accent','Text'):self.result[k]=lib.theme[k]
+        self.draft.data['SettingsColors']=self.result
+        self.body.addWidget(label('설정창만 다른 색으로',True));self.body.addWidget(label('기본은 런처 색상과 연동됩니다. 분리하면 런처 디자인·배경·아이콘 색은 유지됩니다.',muted=True))
+        self.separate=QCheckBox('런처와 설정창 색상을 따로 사용');self.separate.setChecked(self.result['Separate']);self.body.addWidget(self.separate);self.separate.toggled.connect(self.toggle)
+        self.controls=QWidget();layout=QVBoxLayout(self.controls);grid=QGridLayout()
+        for i,c in enumerate(COLORS):grid.addWidget(button(c[0],lambda checked=False,color=c:self.palette(color)),i//5,i%5)
+        layout.addLayout(grid);form=QFormLayout();self.colors={}
+        for k,name in [('Background','설정창 바탕'),('Surface','패널 / 입력칸'),('Accent','포인트 / 강조'),('Text','글자')]:
+            b=button(self.result[k],lambda checked=False,key=k:self.pick(key));self.colors[k]=b;form.addRow(name,b)
+        layout.addLayout(form);layout.addWidget(label('설정창 미리보기',True));layout.addWidget(QLineEdit('이곳에 앱 이름이나 메모를 입력해요.'));layout.addWidget(button('적용 버튼 미리보기',primary=True));self.body.addWidget(self.controls,1);self.body.addWidget(label('연동으로 돌아가도 별도로 고른 색은 보관됩니다. 저장을 누르면 적용됩니다.',muted=True));self.footer();self.refresh()
+    def accept(self):self.result["Initialized"]=True;super().accept()
+    def toggle(self,value):self.result['Separate']=value;self.refresh()
+    def palette(self,color):
+        for key,value in zip(('Background','Surface','Accent','Text'),color[1:]):self.result[key]=value
+        self.refresh()
+    def pick(self,key):
+        d=QColorDialog(QColor(self.result[key]),self);d.setOption(QColorDialog.DontUseNativeDialog);style(d,self.draft)
+        if d.exec():self.result[key]=d.selectedColor().name();self.refresh()
+    def refresh(self):
+        self.controls.setEnabled(self.result['Separate'])
+        for k,b in self.colors.items():b.setText(self.result[k])
+        style(self,self.draft)
 
 class ThemeDialog(Dialog):
     def __init__(self,parent,store,lib):
@@ -469,7 +497,7 @@ class Settings(Dialog):
         for n,f in [('편집',self.edit),('실행',self.open_selected),('칸 배경 꾸미기',self.background_selected),('상위로 꺼내기',self.move_up),('삭제',self.remove)]:menu.addAction(n,f)
         menu.exec(self.tree.viewport().mapToGlobal(pos))
     def appearance(self):
-        d=ActionSheet(self,self.lib,'꾸미기',[('색상 · UI 디자인','10가지 색상, 6가지 모양과 나만의 구성',self.theme_dialog),('전체 배경 이미지','미리보기에서 확대하고 위치 맞추기',self.background_dialog),('칸 배경 일괄 설정','전체 또는 폴더 안의 칸에 이미지·투명도 적용',self.bulk_background),('글꼴 고르기','런처와 설정창의 글꼴을 각각 선택',self.font_dialog)])
+        d=ActionSheet(self,self.lib,'꾸미기',[('런처 색상 · UI 디자인','10가지 색상, 6가지 모양과 나만의 구성',self.theme_dialog),('설정창 색상','런처와 연동하거나 별도의 색상 사용',self.settings_colors),('전체 배경 이미지','미리보기에서 확대하고 위치 맞추기',self.background_dialog),('칸 배경 일괄 설정','전체 또는 폴더 안의 칸에 이미지·투명도 적용',self.bulk_background),('글꼴 고르기','런처와 설정창의 글꼴을 각각 선택',self.font_dialog)])
         d.exec()
     def appearance_dialog(self):
         d=AppearanceDialog(self,self.store,self.lib)
@@ -480,6 +508,9 @@ class Settings(Dialog):
         d=BackgroundDialog(self,self.store,self.lib,bulk=True,parent_id=self.parent_id())
         if d.exec():
             self.lib.apply_backgrounds(d.target_ids(),d.result if d.apply_image.isChecked() else None,d.result_opacity if d.apply_opacity.isChecked() else None,**(d.opacity_args() if d.apply_opacity.isChecked() else {}));self.save_refresh()
+    def settings_colors(self):
+        d=SettingsColorsDialog(self,self.lib)
+        if d.exec():self.lib.data["SettingsColors"]=copy.deepcopy(d.result);self.save_refresh()
     def theme_dialog(self):
         d=ThemeDialog(self,self.store,self.lib)
         if d.exec():self.lib.data['Theme']=d.draft.theme;self.lib.data['CustomThemes']=d.draft.data['CustomThemes'];self.save_refresh()

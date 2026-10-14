@@ -100,7 +100,7 @@ public sealed class LibraryWindow : Window
     public LibraryWindow(Store store, Library library)
     {
         this.store = store; this.library = library;
-        UI.Theme(this, library.Theme); Title = "런처 설정 · 파일과 폴더 관리"; ShowInTaskbar = false; Topmost = false;
+        UI.Theme(this, library.InterfaceTheme); Title = "런처 설정 · 파일과 폴더 관리"; ShowInTaskbar = false; Topmost = false;
         Width = 1080; Height = 720; MinWidth = 820; MinHeight = 540;
         WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.CanResizeWithGrip;
         var area = SystemParameters.WorkArea;
@@ -195,7 +195,7 @@ public sealed class LibraryWindow : Window
     internal void Navigate(string? id) { current = id; search.Clear(); Refresh(); }
     private void Refresh()
     {
-        Skin.Apply(this,library.Theme); sidebar.Children.Clear();
+        Skin.Apply(this,library.InterfaceTheme); sidebar.Children.Clear();
         Button NavItem(string glyph, string name, string? id, int depth, int count)
         {
             var button = UI.Button("", () => Navigate(id)); button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
@@ -254,19 +254,19 @@ public sealed class LibraryWindow : Window
         double inner = CardWidth - CardPadding * 2, innerHeight = CardHeight - CardPadding * 2;
         foreach (var e in list)
         {
-            var card = new Button { Width = CardWidth, Height = CardHeight, Margin = new Thickness(0, 0, 14, 14), Padding = new Thickness(CardPadding), Background = UI.Brush(library.Theme.Surface), Foreground = UI.Brush(library.Theme.Text), ToolTip = e.IsFolder ? library.Trail(e.Id) : e.Target, Tag = e.Id, HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch };
+            var card = new Button { Width = CardWidth, Height = CardHeight, Margin = new Thickness(0, 0, 14, 14), Padding = new Thickness(CardPadding), Background = UI.Brush(library.InterfaceTheme.Surface), Foreground = UI.Brush(library.InterfaceTheme.Text), ToolTip = e.IsFolder ? library.Trail(e.Id) : e.Target, Tag = e.Id, HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch };
             var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            var frame = new Border { Width = 72, Height = 72, CornerRadius = new CornerRadius(18), Background = library.Theme.Blend(library.Theme.Surface, library.Theme.Background, .32), Margin = new Thickness(0, 0, 0, 12), HorizontalAlignment = HorizontalAlignment.Center };
+            var frame = new Border { Width = 72, Height = 72, CornerRadius = new CornerRadius(18), Background = library.InterfaceTheme.Blend(library.InterfaceTheme.Surface, library.InterfaceTheme.Background, .32), Margin = new Thickness(0, 0, 0, 12), HorizontalAlignment = HorizontalAlignment.Center };
             var icon = EntryIcon(e);
             frame.Child = icon != null ? new Image { Source = icon, Width = 46, Height = 46, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } : UI.Icon("\uE8E5", 28, "SkinAccentInk");
             stack.Children.Add(frame);
             stack.Children.Add(new TextBlock { Text = e.Name, FontSize = 13.5, FontWeight = FontWeights.SemiBold, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = inner - 4, HorizontalAlignment = HorizontalAlignment.Center });
             string label = query.Length > 0 ? library.Trail(e.ParentId) : e.IsFolder ? $"폴더 · {library.Children(e.Id).Count()}개" : Directory.Exists(e.Target) ? "실제 폴더" : e.Target.Contains("://") ? "링크" : Path.GetExtension(e.Target).TrimStart('.').ToUpperInvariant();
-            stack.Children.Add(new TextBlock { Text = label, FontSize = 11.5, Foreground = library.Theme.Blend(library.Theme.Text, library.Theme.Surface, .35), TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 4, 0, 0), MaxWidth = inner - 4, HorizontalAlignment = HorizontalAlignment.Center });
+            stack.Children.Add(new TextBlock { Text = label, FontSize = 11.5, Foreground = library.InterfaceTheme.Blend(library.InterfaceTheme.Text, library.InterfaceTheme.Surface, .35), TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 4, 0, 0), MaxWidth = inner - 4, HorizontalAlignment = HorizontalAlignment.Center });
             if(e.Background.ImageFile!=null)
             {
                 var caption=new StackPanel();while(stack.Children.Count>1){var child=stack.Children[1];stack.Children.RemoveAt(1);caption.Children.Add(child);}
-                var color=(Color)ColorConverter.ConvertFromString(library.Theme.Surface);color.A=236;stack.Children.Add(new Border {Background=new SolidColorBrush(color),CornerRadius=new CornerRadius(8),Padding=new Thickness(4,4,4,5),Child=caption});
+                var color=(Color)ColorConverter.ConvertFromString(library.InterfaceTheme.Surface);color.A=236;stack.Children.Add(new Border {Background=new SolidColorBrush(color),CornerRadius=new CornerRadius(8),Padding=new Thickness(4,4,4,5),Child=caption});
             }
             var cardContent = new Grid();
             if (e.Background.ImageFile != null)
@@ -299,15 +299,15 @@ public sealed class LibraryWindow : Window
     {
         target.AllowDrop = true;
         (bool Into, bool After) Location(DragEventArgs e) { double x=e.GetPosition(target).X; return (anchor.IsFolder && x >= 30 && x <= target.ActualWidth-30, x > target.ActualWidth/2); }
-        void Clear() { target.BorderThickness=new Thickness(0); target.Background=UI.Brush(library.Theme.Surface); target.ToolTip=anchor.IsFolder?library.Trail(anchor.Id):anchor.Target; }
+        void Clear() { target.BorderThickness=new Thickness(0); target.Background=UI.Brush(library.InterfaceTheme.Surface); target.ToolTip=anchor.IsFolder?library.Trail(anchor.Id):anchor.Target; }
         void Over(DragEventArgs e)
         {
             var location=Location(e); var ids=e.Data.GetData(EntryDragFormat) as string[];
             bool allowed=ids != null && ids.All(id=>library.Find(id) is Entry moving && moving!=anchor && library.CanMove(moving,location.Into?anchor.Id:anchor.ParentId));
             bool files=anchor.IsFolder && e.Data.GetDataPresent(DataFormats.FileDrop);
             e.Effects=allowed?DragDropEffects.Move:files?DragDropEffects.Copy:DragDropEffects.None; e.Handled=true;
-            target.BorderBrush=UI.Brush(library.Theme.Accent); target.BorderThickness=allowed ? location.Into?new Thickness(2):location.After?new Thickness(0,0,5,0):new Thickness(5,0,0,0) : new Thickness(0);
-            target.Background=allowed?library.Theme.Blend(library.Theme.Surface,library.Theme.Accent,.24):UI.Brush(library.Theme.Surface);
+            target.BorderBrush=UI.Brush(library.InterfaceTheme.Accent); target.BorderThickness=allowed ? location.Into?new Thickness(2):location.After?new Thickness(0,0,5,0):new Thickness(5,0,0,0) : new Thickness(0);
+            target.Background=allowed?library.InterfaceTheme.Blend(library.InterfaceTheme.Surface,library.InterfaceTheme.Accent,.24):UI.Brush(library.InterfaceTheme.Surface);
             target.ToolTip=location.Into?"폴더 안으로 넣기":location.After?"이 카드 뒤로 이동":"이 카드 앞으로 이동";
         }
         target.DragOver+=(_,e)=>Over(e); target.DragEnter+=(_,e)=>Over(e);target.DragLeave+=(_,_)=>Clear();
@@ -350,8 +350,9 @@ public sealed class LibraryWindow : Window
     }
     private void CustomizeAppearance()
     {
-        var menu = new ActionSheet("화면 꾸미기", "색상과 모양, 글꼴을 내 취향으로", library.Theme);
-        menu.Add("\uE790", "색상 · UI 디자인", "기본 색상, 새 레이아웃, 내 커스텀 테마", CustomizeTheme);
+        var menu = new ActionSheet("화면 꾸미기", "색상과 모양, 글꼴을 내 취향으로", library.InterfaceTheme);
+        menu.Add("\uE790", "런처 색상 · UI 디자인", "기본 색상, 새 레이아웃, 내 커스텀 테마", CustomizeTheme);
+        menu.Add("\uE790","설정창 색상","런처와 연동하거나 별도의 색상 사용",CustomizeSettingsColors);
         menu.Add("\uEB9F", "전체 배경 이미지", "실제 화면을 보며 이미지 위치와 확대 조절", CustomizeBackground);
         menu.Add("\uEB9F", "칸 배경 일괄 설정", "전체 또는 폴더 안의 칸에 이미지·투명도 적용", CustomizeBulk);
         menu.Add("\uE8D2", "글꼴", "런처와 설정 창의 글꼴을 각각 고르기", CustomizeFonts);
@@ -371,9 +372,11 @@ public sealed class LibraryWindow : Window
     /// <summary>One place for both registration paths: drop files, or paste a shortcut's target.</summary>
     private void ShowDirectRegister()
     {
-        var window = new RegistrationHelpWindow(library.Theme, entry => { entry.ParentId = current; library.Entries.Add(entry); search.Clear(); Commit(); }, paths => RegisterInto(paths, current), library.Trail(current)) { Owner = this };
+        var window = new RegistrationHelpWindow(library.InterfaceTheme, entry => { entry.ParentId = current; library.Entries.Add(entry); search.Clear(); Commit(); }, paths => RegisterInto(paths, current), library.Trail(current)) { Owner = this };
         window.ShowDialog();
     }
+    private void CustomizeSettingsColors()
+    { var dialog=new SettingsColorsWindow(library){Owner=this};if(dialog.ShowDialog()==true){library.SettingsColors=dialog.Result!;Commit();} }
     private void CustomizeTheme()
     {
         var dialog = new ThemeWindow(store, library) { Owner = this };
@@ -424,12 +427,12 @@ public sealed class LibraryWindow : Window
     private void AddFolder()
     {
         var entry = new Entry { Name = "새 폴더", IsFolder = true, ParentId = current };
-        var dialog = new EditorWindow(store, entry,library.Theme) { Owner = this };
+        var dialog = new EditorWindow(store, entry,library.InterfaceTheme) { Owner = this };
         if (dialog.ShowDialog() == true) { library.Entries.Add(dialog.Result!); search.Clear(); Commit(); }
     }
     private void Edit(Entry e)
     {
-        var dialog = new EditorWindow(store, e,library.Theme) { Owner = this };
+        var dialog = new EditorWindow(store, e,library.InterfaceTheme) { Owner = this };
         if (dialog.ShowDialog() == true) { library.Entries[library.Entries.IndexOf(e)] = dialog.Result!; Commit(); }
     }
     private void Move(Entry e)
@@ -462,7 +465,7 @@ public sealed class LibraryWindow : Window
     private void ShowSettings() { var menu=OptionsSheet();menu.Owner=this;menu.ShowDialog(); }
     internal ActionSheet OptionsSheet()
     {
-        var menu = new ActionSheet("런처 옵션", "동작 설정과 라이브러리 관리",library.Theme);
+        var menu = new ActionSheet("런처 옵션", "동작 설정과 라이브러리 관리",library.InterfaceTheme);
         menu.Add("\uE8D2","중앙 문구 수정","제목과 안내 문구를 작성하기",CustomizeText);
         menu.Section("동작");
         menu.AddToggle("휠로 다이얼 돌리기", "끄면 이전 / 다음 페이지 버튼으로 넘겨요. 켜면 휠 한 칸에 아이콘이 하나씩 돌아요.",library.WheelDialEnabled,value=>{library.WheelDialEnabled=value;Commit();});
@@ -593,7 +596,7 @@ internal sealed class MoveWindow : Window
     public string? SelectedParent => (combo.SelectedItem as Destination)?.Id;
     public MoveWindow(Library library, Entry entry)
     {
-        UI.Theme(this,library.Theme); Title = "폴더로 이동"; Width = 520; Height = 270; ResizeMode = ResizeMode.NoResize; WindowStartupLocation = WindowStartupLocation.CenterOwner; ShowInTaskbar = false;
+        UI.Theme(this,library.InterfaceTheme); Title = "폴더로 이동"; Width = 520; Height = 270; ResizeMode = ResizeMode.NoResize; WindowStartupLocation = WindowStartupLocation.CenterOwner; ShowInTaskbar = false;
         var panel = new StackPanel { Margin = new Thickness(26, 22, 26, 20) }; panel.Children.Add(UI.Heading("‘" + entry.Name + "’ 이동", 20));
         var hint = UI.Text("옮길 폴더를 고르세요. 카드를 폴더로 끌어다 놓아도 됩니다.", 13, UI.Muted); hint.Margin = new Thickness(0, 6, 0, 0); panel.Children.Add(hint);
         combo.Items.Add(new Destination(null, "라이브러리 (맨 위)"));

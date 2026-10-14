@@ -23,7 +23,7 @@ public sealed class FontWindow : Window
     public FontWindow(Store store, Library library)
     {
         draft = (library.Fonts ?? new()).Copy();
-        UI.Theme(this, library.Theme); Title = "글꼴"; Width = 1140; Height = 800; MinWidth = 900; MinHeight = 600;
+        UI.Theme(this, library.InterfaceTheme); Title = "글꼴"; Width = 1140; Height = 800; MinWidth = 900; MinHeight = 600;
         Width = Math.Min(Width, SystemParameters.WorkArea.Width - 24); Height = Math.Min(Height, SystemParameters.WorkArea.Height - 30);
         ShowInTaskbar = false; Topmost = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var main = new Grid { Margin = new Thickness(28, 22, 28, 20) }; main.RowDefinitions.Add(new() { Height = GridLength.Auto }); main.RowDefinitions.Add(new()); main.RowDefinitions.Add(new() { Height = GridLength.Auto }); Content = main;
@@ -131,7 +131,7 @@ public sealed class FontWindow : Window
     private void Update()
     {
         var launcher = FontCatalog.Resolve(draft.Launcher, FontCatalog.DefaultLauncher); var settings = FontCatalog.Resolve(draft.Interface, FontCatalog.DefaultInterface);
-        preview.FontOverride = launcher; preview.UpdateTheme(preview.library.Theme);
+        preview.FontOverride = launcher; preview.UpdateTheme(preview.library.InterfaceTheme);
         sample.SetValue(TextElement.FontFamilyProperty, settings);
         launcherName.Text = Name(draft.Launcher, "기본"); interfaceName.Text = Name(draft.Interface, "기본");
     }

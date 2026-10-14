@@ -46,6 +46,9 @@ public sealed class Library
     public BackgroundSettings Background { get; set; } = new();
     public AppearanceSettings Appearance { get; set; } = new();
     public ThemeSettings Theme { get; set; } = new();
+    public SettingsColors SettingsColors {get;set;} = new();
+    [System.Text.Json.Serialization.JsonIgnore]
+    public ThemeSettings InterfaceTheme => SettingsColors.Apply(Theme);
     public List<Entry> Entries { get; set; } = new();
 
     public IEnumerable<Entry> Children(string? parent) => Entries.Where(e => e.ParentId == parent);
@@ -130,6 +133,7 @@ public sealed class Library
     }
     public void Validate()
     {
+        SettingsColors ??= new();SettingsColors.Validate();
         Appearance ??= new(); Appearance.Validate();
         Background ??= new(); Background.Validate(); Theme ??= new(); Theme.Validate(); CustomThemes ??= new(); Fonts ??= new(); Fonts.Validate();
         var themeIds = new HashSet<string>();

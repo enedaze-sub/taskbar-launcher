@@ -120,6 +120,12 @@ def draw_background(painter,images,bg,path):
     painter.save();painter.setClipPath(path);painter.drawPixmap(rect,pix,QRectF(pix.rect()))
     painter.fillPath(path,alpha('#071421',bg.get('Darkness',.42)));painter.restore()
 
+def contrast_text(color):
+    c=QColor(color)
+    def linear(v):v=v/255;return v/12.92 if v<=.04045 else ((v+.055)/1.055)**2.4
+    luminance=.2126*linear(c.red())+.7152*linear(c.green())+.0722*linear(c.blue())
+    return QColor('#000000' if (luminance+.05)/.05 >= 1.05/(luminance+.05) else '#FFFFFF')
+
 class Canvas(QWidget):
     opened=Signal(str); hovered=Signal(object,QPointF); control=Signal(str)
     rearrange=Signal(list,object,bool); filesDropped=Signal(list,object); contextRequested=Signal(str,object)
@@ -295,7 +301,7 @@ class Canvas(QWidget):
             self.text(p,rect,e['Name'],12 if d=='cat' else 11.5,tx,heading=True,align=Qt.AlignVCenter|Qt.AlignLeft if d=='cat' else Qt.AlignCenter)
         if e['IsFolder'] and part in ('all','icon'):
             count=str(len(self.library.children(e['Id'])));mark=QRectF(bounds.right()-28,bounds.top()+8,18,18) if d in ('cat','paper','modern') else QRectF(center.x()+14,center.y()+10,18,18)
-            p.setBrush(ac);p.setPen(Qt.NoPen);p.drawEllipse(mark);self.text(p,mark,count,10,bg)
+            ink=contrast_text(ac);p.setBrush(ac);p.setPen(QPen(alpha(ink,.25),.8));p.drawEllipse(mark);self.text(p,mark,count,10,ink)
     def decorations(self,p,d,bg,sf,ac,tx):
         p.setPen(QPen(alpha(ac,.22),1));p.setBrush(Qt.NoBrush)
         if d=='cat':

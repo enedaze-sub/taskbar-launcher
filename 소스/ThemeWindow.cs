@@ -7,6 +7,7 @@ namespace DeckLauncher;
 
 public sealed class ThemeWindow : Window
 {
+    private readonly SettingsColors settingsColors;
     private readonly LauncherWindow preview;
     private readonly StackPanel controls = new();
     private readonly Grid selectors = new();
@@ -26,9 +27,10 @@ public sealed class ThemeWindow : Window
 
     public ThemeWindow(Store store, Library library)
     {
+        settingsColors=library.SettingsColors.Copy();
         Draft = library.Theme.Copy(); saved = library.CustomThemes.Select(t => t.Copy()).ToList();
         savedId = saved.FirstOrDefault(t => t.Settings.Name == Draft.Name)?.Id;
-        UI.Theme(this, library.Theme); Title = "테마와 디자인 꾸미기"; Width = 1140; Height = 840;
+        UI.Theme(this, library.InterfaceTheme); Title = "테마와 디자인 꾸미기"; Width = 1140; Height = 840;
         MinWidth = 930; MinHeight = 660; ShowInTaskbar = false; Topmost = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Width = Math.Min(Width, SystemParameters.WorkArea.Width - 24); Height = Math.Min(Height, SystemParameters.WorkArea.Height - 30);
         var main = new Grid { Margin = new Thickness(24) };
@@ -184,7 +186,7 @@ public sealed class ThemeWindow : Window
     {
         modified = true; Draft.Name = customName?.Text.Trim() ?? "나의 테마"; Update();
     }
-    private void Update() { Skin.Palette(this,Draft); Skin.Connect(this); preview.UpdateTheme(Draft); status.Text = Draft.Name + " · " + Draft.Slots + "칸"; }
+    private void Update() { Skin.Palette(this,settingsColors.Apply(Draft)); Skin.Connect(this); preview.UpdateTheme(Draft); status.Text = Draft.Name + " · " + Draft.Slots + "칸"; }
     private void BuildControls()
     {
         controls.Children.Clear(); colorBoxes.Clear(); var label = UI.Heading("나만의 색상과 배치", 17); controls.Children.Add(label);
@@ -197,7 +199,7 @@ public sealed class ThemeWindow : Window
         {
             controls.Children.Add(new TextBlock { Text = name, Foreground = UI.Muted, FontSize = 12, Margin = new Thickness(0, 14, 0, 5) });
             var row = new DockPanel(); var box = new TextBox { Text = value, MaxLength = 7, ToolTip = "#RRGGBB 형식의 색상" };
-            var pick = UI.Button("●", () => { var dialog = new ColorWindow(ThemeSettings.ValidColor(box.Text) ? box.Text : value,Draft) { Owner = this }; if (dialog.ShowDialog() == true) box.Text = dialog.Result; });
+            var pick = UI.Button("●", () => { var dialog = new ColorWindow(ThemeSettings.ValidColor(box.Text) ? box.Text : value,settingsColors.Apply(Draft)) { Owner = this }; if (dialog.ShowDialog() == true) box.Text = dialog.Result; });
             pick.Foreground = UI.Brush(value); pick.Padding = new Thickness(13, 7, 13, 7); DockPanel.SetDock(pick, Dock.Right); row.Children.Add(pick); row.Children.Add(box); controls.Children.Add(row); colorBoxes.Add(box);
             box.TextChanged += (_, _) => { if (!ThemeSettings.ValidColor(box.Text)) { box.BorderBrush = UI.Brush("#EF8EAB"); return; } box.BorderBrush = UI.Brush("#3B526D"); pick.Foreground = UI.Brush(box.Text); assign(box.Text); Changed(); };
         }

@@ -13,7 +13,7 @@ public sealed class AppearanceWindow : Window
     public AppearanceWindow(Store store,Library library)
     {
         snapshot=JsonSerializer.Deserialize<Library>(JsonSerializer.Serialize(library))!;
-        UI.Theme(this,library.Theme);Title="중앙 문구 수정";Width=1000;Height=670;MinWidth=740;MinHeight=550;ShowInTaskbar=false;Topmost=false;WindowStartupLocation=WindowStartupLocation.CenterOwner;
+        UI.Theme(this,library.InterfaceTheme);Title="중앙 문구 수정";Width=1000;Height=670;MinWidth=740;MinHeight=550;ShowInTaskbar=false;Topmost=false;WindowStartupLocation=WindowStartupLocation.CenterOwner;
         Height=System.Math.Min(Height,SystemParameters.WorkArea.Height-30);Width=System.Math.Min(Width,SystemParameters.WorkArea.Width-24);
         var main=new Grid {Margin=new Thickness(24)};main.RowDefinitions.Add(new(){Height=GridLength.Auto});main.RowDefinitions.Add(new());main.RowDefinitions.Add(new(){Height=GridLength.Auto});Content=main;
         var controls=new StackPanel();controls.Children.Add(UI.Heading("나만의 제목과 안내 문구",25));controls.Children.Add(UI.Text("아이콘을 가리키면 개별 메모, 떼면 작성한 문구를 표시합니다. 폴더 안에서는 폴더 이름을 표시합니다.",13,UI.Muted));

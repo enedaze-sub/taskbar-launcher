@@ -311,8 +311,9 @@ public sealed partial class LauncherWindow : Window
         Place(texts, nameBox, nameLeft, nameTop);
         if (entry.IsFolder)
         {
-            var count = new TextBlock { Text = library.Children(entry.Id).Count().ToString(), FontSize = 10.5, FontWeight = FontWeights.Bold, FontFamily = new FontFamily("Segoe UI"), Foreground = T(Skin.IsLight(Theme.Accent) ? Theme.Background : "#FFFFFF"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            var badge = new Border { Background = T(Theme.Accent), CornerRadius = new CornerRadius(9), MinWidth = 18, Height = 18, Padding = new Thickness(5, 0, 5, 0), IsHitTestVisible = false, Child = count, HorizontalAlignment = tiles ? HorizontalAlignment.Right : HorizontalAlignment.Left };
+            var count = new TextBlock { Text = library.Children(entry.Id).Count().ToString(), FontSize = 10.5, FontWeight = FontWeights.Bold, FontFamily = new FontFamily("Segoe UI"), Foreground = T(Skin.ContrastText(Theme.Accent)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            var badgeInk=T(Skin.ContrastText(Theme.Accent));badgeInk.Opacity=.25;
+            var badge = new Border { BorderBrush=badgeInk,BorderThickness=new Thickness(.8),Background = T(Theme.Accent), CornerRadius = new CornerRadius(9), MinWidth = 18, Height = 18, Padding = new Thickness(5, 0, 5, 0), IsHitTestVisible = false, Child = count, HorizontalAlignment = tiles ? HorizontalAlignment.Right : HorizontalAlignment.Left };
             var badgeBox = new Grid { Width = 40, Height = 18, IsHitTestVisible = false }; badgeBox.Children.Add(badge);
             if (Theme.Design=="cat") Place(icons, badgeBox, bounds.Right - 12 - 40, bounds.Y + (bounds.Height - 18) / 2);
             else if (tiles) Place(icons, badgeBox, bounds.Right - 8 - 40, bounds.Y + 7);
@@ -457,7 +458,7 @@ public sealed partial class LauncherWindow : Window
         CloseFolderPreview(); modal = true;
         try
         {
-            var editor = new EditorWindow(store, entry,library.Theme) { Owner = this, Topmost = false, WindowStartupLocation = WindowStartupLocation.CenterScreen };
+            var editor = new EditorWindow(store, entry,library.InterfaceTheme) { Owner = this, Topmost = false, WindowStartupLocation = WindowStartupLocation.CenterScreen };
             if (editor.ShowDialog() == true) { library.Entries[library.Entries.IndexOf(entry)] = editor.Result!; store.Save(library); icons.Clear(); Refresh(); }
         }
         finally { modal = false; if (IsVisible) Activate(); }

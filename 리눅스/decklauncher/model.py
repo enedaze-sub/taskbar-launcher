@@ -38,6 +38,9 @@ def appearance():
 def background():
     return dict(ImageFile=None, Zoom=1, OffsetX=0, OffsetY=0, Darkness=.42)
 
+def settings_colors():
+    return dict(Separate=False,Initialized=False,Background="#111C2B",Surface="#2A3B50",Accent="#6DE0D4",Text="#F0F5FC")
+
 def theme():
     n,b,s,a,t = COLORS[0]
     return dict(Name=n, Background=b, Surface=s, Accent=a, Text=t, Design='classic',
@@ -78,9 +81,10 @@ class Library:
         self.data = copy.deepcopy(data) if data is not None else {}
         defaults = dict(Version=1, UiRevision=6, HideAfterLaunch=True, WheelDialEnabled=False,
                         CustomThemes=[], Fonts=dict(Launcher='', Interface=''),
-                        Background=background(), Appearance=appearance(), Theme=theme(), Entries=[],
+                        Background=background(), Appearance=appearance(), SettingsColors=settings_colors(), Theme=theme(), Entries=[],
                         LinuxPlacement=dict(Edge='auto', Align='cursor', Offset=0))
         for k,v in defaults.items(): self.data.setdefault(k,v)
+        self.data['SettingsColors']={**settings_colors(),**self.data['SettingsColors']}
         self.data['Appearance']={**appearance(), **self.data['Appearance']}
         self.data['Theme'] = {**theme(), **self.data['Theme']}
         if self.data['Theme']['Design'] == 'glass': self.data['Theme']['Design']='modern'
@@ -96,6 +100,9 @@ class Library:
     def entries(self): return self.data['Entries']
     @property
     def theme(self): return self.data['Theme']
+    @property
+    def interface_theme(self):
+        colors=self.data['SettingsColors'];return {**self.theme,**{k:colors[k] for k in ('Background','Surface','Accent','Text')}} if colors['Separate'] else self.theme
     def find(self, item_id): return next((e for e in self.entries if e['Id']==item_id), None)
     def children(self, parent=None): return [e for e in self.entries if e['ParentId']==parent]
     def can_move(self, item_id, parent):
@@ -124,6 +131,8 @@ class Library:
             if not self.can_move(e['Id'],e['ParentId']): raise ValueError('폴더 구조가 잘못되었습니다.')
         a=self.data['Appearance']
         if not isinstance(a.get('Title'),str) or len(a['Title'])>60 or not isinstance(a.get('Note'),str) or len(a['Note'])>300 or not check_number(a.get('Opacity'),0,1):raise ValueError('문구 또는 전체 투명도 값이 잘못되었습니다.')
+        colors=self.data['SettingsColors']
+        if not isinstance(colors['Separate'],bool) or not isinstance(colors['Initialized'],bool) or any(not re.fullmatch(r'#[\da-fA-F]{6}',colors.get(k,'')) for k in ('Background','Surface','Accent','Text')):raise ValueError('설정창 색상이 잘못되었습니다.')
         validate_theme(self.theme); validate_background(self.data['Background'])
         for custom in self.data['CustomThemes']: validate_theme(custom['Settings'])
         placement=self.data['LinuxPlacement']

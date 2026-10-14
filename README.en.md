@@ -46,15 +46,17 @@ To update, exit the launcher and extract the new files over the existing install
 
 ## Text, backgrounds, and transparency (v8.3)
 
+- **Customize (꾸미기) → Settings colors (설정창 색상):** Settings follow the launcher colors by default. Enable **Use separate launcher and settings colors (런처와 설정창 색상을 따로 사용)** to choose independent background, panel, accent, and text colors. Your choices are retained when you link the colors again.
+- Folder counts automatically use black or white text to remain readable on bright and dark accent colors.
 - **… → Edit center text (중앙 문구 수정):** Set your own “My shortcuts” title and center message.
 - **Customize (꾸미기) → Overall background image (전체 배경 이미지):** Adjust image position, zoom, and overall launcher transparency from **0 to 100%**.
 - **Right-click a tile → This tile’s background image (이 칸의 배경 이미지):** Adjust image position and tile transparency from **-100 to 100%**. 0% keeps the original design, negative values make its backing denser, and 100% makes it fully transparent.
 - By default, the entire tile is adjusted together. Enable **Adjust background, icon, and text transparency separately (배경 · 아이콘 · 글자 투명도를 따로 조절)** to set icon and text transparency independently from **0 to 100%**. For example, background 100% and icon/text 0% hide only the tile background while keeping the foreground clear. Overall launcher transparency still applies to all these layers.
-- If you hide the whole launcher at 100%, clicking its taskbar/Dock icon opens settings so you can change it again.
+- If you hide the whole launcher at 100%, clicking its taskbar/Dock icon again opens settings so you can change it again.
 - **Customize → Bulk tile backgrounds (칸 배경 일괄 설정):** Choose all tiles, the current folder, or the current folder and descendants. Apply images/position and transparency independently.
 - Backup names include the date, time, and seconds. If a name already exists, `_2`, `_3`, and so on are added to preserve earlier files.
 
-Automated checks passed: **217 Windows**, **132 Linux**, and **150 macOS**. [v8.3 changes](docs/v8.3.md) · [Background, bulk, and independent transparency guide](docs/v8.2.md) (Korean).
+Automated checks passed: **231 Windows**, **140 Linux**, and **158 macOS**. [v8.3 changes](docs/v8.3.md) · [Background, bulk, and independent transparency guide](docs/v8.2.md) (Korean).
 
 ![Independent transparency settings on Windows](미리보기/독립-투명도.png)
 

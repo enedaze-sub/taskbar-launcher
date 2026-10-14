@@ -14,6 +14,11 @@ internal static class Skin
         window.Resources=(ResourceDictionary)XamlReader.Parse(Styles);Palette(window,theme);
         window.SetResourceReference(Window.BackgroundProperty,"SkinBackground");window.SetResourceReference(Window.ForegroundProperty,"SkinText");
     }
+    internal static double Luminance(string color)
+    {
+        var c=(Color)ColorConverter.ConvertFromString(color);double Linear(byte v){double x=v/255.0;return x<=.04045?x/12.92:Math.Pow((x+.055)/1.055,2.4);}return .2126*Linear(c.R)+.7152*Linear(c.G)+.0722*Linear(c.B);
+    }
+    internal static string ContrastText(string color) {double l=Luminance(color);return (l+.05)/.05>=1.05/(l+.05)?"#000000":"#FFFFFF";}
     internal static bool IsLight(string color)
     {
         var c=(Color)ColorConverter.ConvertFromString(color);return .2126*c.R+.7152*c.G+.0722*c.B>150;
@@ -27,7 +32,7 @@ internal static class Skin
             ["SkinCard"]=UI.Brush(theme.Surface),["SkinControl"]=theme.Blend(theme.Background,theme.Surface,.8),
             ["SkinBorder"]=theme.Blend(theme.Background,theme.Text,.16),["SkinStrongBorder"]=theme.Blend(theme.Background,theme.Text,.3),
             ["SkinText"]=UI.Brush(theme.Text),["SkinMuted"]=theme.Blend(theme.Text,theme.Background,light?.3:.26),
-            ["SkinAccent"]=UI.Brush(theme.Accent),["SkinAccentText"]=UI.Brush(IsLight(theme.Accent)?(light?theme.Text:theme.Background):"#FFFFFF"),
+            ["SkinAccent"]=UI.Brush(theme.Accent),["SkinAccentText"]=UI.Brush(ContrastText(theme.Accent)),
             ["SkinAccentSoft"]=theme.Blend(theme.Background,theme.Accent,light?.13:.2),["SkinAccentInk"]=light?theme.Blend(theme.Accent,theme.Text,.25):UI.Brush(theme.Accent),
             ["SkinButton"]=theme.Blend(theme.Background,theme.Surface,.75),["SkinHover"]=theme.Blend(theme.Surface,theme.Accent,.15),
             ["SkinDanger"]=UI.Brush(light?"#C2413B":"#FF8A80"),["SkinDangerSoft"]=theme.Blend(theme.Background,light?"#C2413B":"#FF8A80",.16),
