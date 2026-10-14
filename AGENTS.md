@@ -12,3 +12,12 @@
 - The release organization workflow only removes explicitly recognized duplicate guide/preview/checksum names. Keep unrecognized assets and ask the user if a new installer format, new resource, or exception to the agreed layout is needed.
 - If the user asks to publish or update main/releases, that request authorizes the stated changes. Do not ask for the same approval again; ask only for missing information, new scope, or a required permission.
 - Preserve personal Data directories, registered shortcuts, notes, and images; never include them in commits or release packages.
+
+## Release note style
+
+- Use v7 and v8.1 as the style reference: one short paragraph focused on what changed and its user-visible benefit; use a few short bullets only when clearer.
+- Keep future release notes concise. Do not reproduce the README, the full feature list, theme galleries, lengthy installation guides, or routine test counts.
+- Include a concrete before/after result or measurement only when it explains the main change.
+- Use at most one brief installation reminder or a README link when needed.
+- Keep necessary download links and checksums compact and secondary to the change summary; prefer a collapsed section for SHA256 values.
+- This preference applies to future releases. Leave the current v8.3 release text unchanged unless the maintainer explicitly requests another edit.
