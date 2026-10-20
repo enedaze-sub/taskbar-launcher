@@ -102,14 +102,14 @@ internal static class Native
     [DllImport("user32.dll")] private static extern bool DestroyIcon(IntPtr icon);
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)] public static extern int SetCurrentProcessExplicitAppUserModelID(string id);
     [DllImport("shell32.dll")] private static extern int SHGetPropertyStoreForWindow(IntPtr hwnd, ref Guid iid, [MarshalAs(UnmanagedType.Interface)] out IPropertyStore propertyStore);
-    [StructLayout(LayoutKind.Sequential)] private struct PropertyKey { public Guid Format; public uint Id; }
-    [StructLayout(LayoutKind.Explicit, Size = 24)] private struct PropVariant
+    [StructLayout(LayoutKind.Sequential)] internal struct PropertyKey { public Guid Format; public uint Id; }
+    [StructLayout(LayoutKind.Explicit, Size = 24)] internal struct PropVariant
     {
         [FieldOffset(0)] public ushort Type;
         [FieldOffset(8)] public IntPtr Pointer;
     }
     [ComImport, Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IPropertyStore
+    internal interface IPropertyStore
     {
         [PreserveSig] int GetCount(out uint count);
         [PreserveSig] int GetAt(uint index, out PropertyKey key);
@@ -125,14 +125,15 @@ internal static class Native
         {
             string executable = Path.Combine(AppContext.BaseDirectory, "DeckLauncher.exe");
             SetProperty(props, 2, "\"" + executable + "\"");
-            SetProperty(props, 3, executable + ",0");
+            SetProperty(props, 3, executable + ",-32512");
             SetProperty(props, 4, "작업표시줄 런처");
             SetProperty(props, 5, "Enedaze.DeckLauncher");
             Marshal.ThrowExceptionForHR(props.Commit());
         }
         finally { Marshal.ReleaseComObject(props); }
+        InstallWindowIcons(window);
     }
-    private static void SetProperty(IPropertyStore store, uint id, string text)
+    internal static void SetProperty(IPropertyStore store, uint id, string text)
     {
         var key = new PropertyKey { Format = new Guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"), Id = id };
         var value = new PropVariant { Type = 31, Pointer = Marshal.StringToCoTaskMemUni(text) };
@@ -163,6 +164,24 @@ internal static class Native
         }
         return FileIcon(Path.Combine(AppContext.BaseDirectory,"DeckLauncher.exe"));
     }
+    [DllImport("shell32.dll",CharSet=CharSet.Unicode)] private static extern uint ExtractIconEx(string file,int index,out IntPtr large,out IntPtr small,uint count);
+    [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hwnd,uint message,IntPtr wParam,IntPtr lParam);
+    private static void InstallWindowIcons(Window window)
+    {
+        string executable=Path.Combine(AppContext.BaseDirectory,"DeckLauncher.exe");
+        if(ExtractIconEx(executable,-32512,out var large,out var small,1)==0)return;
+        var hwnd=new WindowInteropHelper(window).Handle;
+        SendMessage(hwnd,0x80,new IntPtr(1),large);SendMessage(hwnd,0x80,IntPtr.Zero,small);
+        window.Closed+=(_,_)=>{if(large!=IntPtr.Zero)DestroyIcon(large);if(small!=IntPtr.Zero && small!=large)DestroyIcon(small);};
+    }
+    internal static BitmapSource? WindowIcon(Window window,bool small)
+    {
+        var icon=SendMessage(new WindowInteropHelper(window).Handle,0x7F,new IntPtr(small?0:1),IntPtr.Zero);
+        if(icon==IntPtr.Zero)return null;
+        var bitmap=Imaging.CreateBitmapSourceFromHIcon(icon,Int32Rect.Empty,BitmapSizeOptions.FromEmptyOptions());bitmap.Freeze();return bitmap;
+    }
+    [DllImport("shell32.dll",CharSet=CharSet.Unicode)] private static extern void SHChangeNotify(uint change,uint flags,string path,IntPtr unused);
+    internal static void RefreshShortcutIcon(string path)=>SHChangeNotify(0x2000,5,path,IntPtr.Zero);
     public static ImageSource? FileIcon(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) return null;

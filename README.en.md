@@ -30,11 +30,11 @@ The video shows opening the launcher and folders, managing shortcuts, choosing c
 
 ### Option 1 · Download the ZIP
 
-1. Download [`taskbar-launcher-v8.4.1.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4.1/taskbar-launcher-v8.4.1.zip) from the [latest release](https://github.com/enedaze-sub/taskbar-launcher/releases/latest) and extract it.
+1. Download [`taskbar-launcher-v8.4.2.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4.2/taskbar-launcher-v8.4.2.zip) from the [latest release](https://github.com/enedaze-sub/taskbar-launcher/releases/latest) and extract it.
 2. Run `실행파일\DeckLauncher.exe`.
 3. Right-click the taskbar icon and choose **Pin to taskbar**.
 
-Under **Assets**, choose **`taskbar-launcher-v8.4.1.zip`**, the Windows distribution ZIP with executables, source, and translated READMEs.
+Under **Assets**, choose **`taskbar-launcher-v8.4.2.zip`**, the Windows distribution ZIP with executables, source, and translated READMEs.
 
 ### Option 2 · Install with git
 
@@ -58,13 +58,13 @@ To update, exit the launcher and extract the new files over the existing install
 - **Customize → Bulk tile backgrounds (칸 배경 일괄 설정):** Choose all tiles, the current folder, or the current folder and descendants. Apply images/position and transparency independently.
 - Backup names include the date, time, and seconds. If a name already exists, `_2`, `_3`, and so on are added to preserve earlier files.
 
-Automated checks passed: **266 Windows**, **141 Linux**, and **159 macOS**. [v8.3 changes](docs/v8.3.md) · [Background, bulk, and independent transparency guide](docs/v8.2.md) (Korean).
+Automated checks passed: **269 Windows**, **141 Linux**, and **159 macOS**. [v8.3 changes](docs/v8.3.md) · [Background, bulk, and independent transparency guide](docs/v8.2.md) (Korean).
 
 ![Independent transparency settings on Windows](미리보기/독립-투명도.png)
 
 ## Quick usage guide
 
-- **Windows taskbar:** The icon stays available when the launcher popup hides. Right-click it to pin, and click it again to reopen the launcher.
+- **Windows taskbar:** Hiding the launcher also removes its running taskbar entry; explicitly pinned shortcuts remain. The small **pin button** next to Settings requests pinning through Windows confirmation where supported. To unpin, or on older Windows, keep the pin guide open and right-click the taskbar icon. Auto-hide is paused while that guide is open.
 - **Reopening:** After hiding the launcher or launching an app, reopening starts at the first library page.
 - **Windows multi-monitor behavior:** The display position is determined on the clicked monitor before showing the launcher. Duplicate position searches and memory cleanup while visible have been removed.
 - **WindowsApps apps:** Versioned paths for apps such as Claude and Paint resolve to the current installed package at launch. Existing targets, arguments, and notes are preserved.

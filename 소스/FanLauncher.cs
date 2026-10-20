@@ -248,6 +248,8 @@ public sealed partial class LauncherWindow : Window
         Place(fan, back, hubX - sideOffset - 22, 403);
         var settings = RoundButton("\uE713", "설정 · 파일 / 폴더 / 이미지 / 메모", Manage, true); Place(fan, settings, hubX - 25, 396);
         var hide = RoundButton("\uE711", "숨기기 (Esc)", Hide); Place(fan, hide, hubX + sideOffset - 22, 403);
+        var pin=RoundButton("\uE718","작업표시줄 고정 / 해제",ManageTaskbar);pin.Width=pin.Height=24;
+        System.Windows.Automation.AutomationProperties.SetName(pin,"작업표시줄 고정 / 해제");Place(fan,pin,hubX+28,416);
         var settingsMenu = new ContextMenu(); settingsMenu.Items.Add(UI.Menu("설정 열기", Manage)); settingsMenu.Items.Add(UI.Menu("런처 종료", () => Application.Current.Shutdown())); settings.ContextMenu = settingsMenu; settingsContext=settingsMenu;
         if (PageCount > 1)
         {
@@ -458,6 +460,19 @@ public sealed partial class LauncherWindow : Window
         trimTimer.Stop(); trimTimer.Tick -= TrimTick; trimTimer.Tick += TrimTick; trimTimer.Start();
     }
     private void TrimTick(object? sender, EventArgs e) { trimTimer!.Stop(); if (!modal && !IsVisible && !opening) Native.TrimMemory(); }
+    private async void ManageTaskbar()
+    {
+        if(previewMode || modal)return;
+        CloseFolderPreview();modal=true;
+        try
+        {
+            var state=await TaskbarPinning.Read();
+            if(state.Supported && !state.Pinned && await TaskbarPinning.Pin())return;
+            new TaskbarPinWindow(library.InterfaceTheme){Owner=this}.ShowDialog();
+        }
+        catch(Exception ex){MessageBox.Show(this,"Windows에서 고정을 완료하지 못했습니다.\n"+ex.Message,"작업표시줄 고정",MessageBoxButton.OK,MessageBoxImage.Information);}
+        finally{modal=false;if(IsVisible)Activate();}
+    }
     private void Manage()
     {
         CloseFolderPreview(); modal = true;
