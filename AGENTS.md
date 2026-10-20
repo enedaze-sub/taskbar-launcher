@@ -13,6 +13,13 @@
 - If the user asks to publish or update main/releases, that request authorizes the stated changes. Do not ask for the same approval again; ask only for missing information, new scope, or a required permission.
 - Preserve personal Data directories, registered shortcuts, notes, and images; never include them in commits or release packages.
 
+## Release cadence
+
+- Do not create a release, tag, or version bump for every chat message or small change. Routine fixes and documentation changes accumulate on main after validation.
+- Publish a release when a meaningful group of changes has accumulated, a major feature or development milestone is complete, or the user explicitly requests a release.
+- Updating GitHub/main does not by itself request a release. Keep unreleased changes recorded so the next release can summarize the accumulated work.
+- Preserve existing published releases; do not delete or consolidate them unless the user asks.
+
 ## Release note style
 
 - Use v7 and v8.1 as the style reference: one short paragraph focused on what changed and its user-visible benefit; use a few short bullets only when clearer.
