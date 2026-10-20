@@ -1,9 +1,6 @@
 name: Keep release downloads focused
 
 on:
-  push:
-    branches: [main]
-    paths: [.github/workflows/release-asset-filenames.yml, 도구/release_downloads.py]
   release:
     types: [published]
   workflow_dispatch:
@@ -11,7 +8,7 @@ on:
       tag:
         description: Release tag to organize
         required: true
-        default: v8.3
+        default: v8.4
 
 permissions:
   contents: write
@@ -27,7 +24,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
-      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || 'v8.3' }}
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || 'v8.4' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
