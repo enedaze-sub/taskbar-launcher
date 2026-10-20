@@ -133,6 +133,7 @@ internal static class SelfTests
             }
 
             var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            ReopenRegression.Run(output,Check);
             fullyTransparentLibrary.Theme.Design="classic";fullStore.Save(fullyTransparentLibrary);var recoveryWindow=new LauncherWindow(fullStore,fullyTransparentLibrary){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};recoveryWindow.Show();
             app.Dispatcher.BeginInvoke(new Action(()=>{var manager=recoveryWindow.OwnedWindows.OfType<LibraryWindow>().First();Check(manager.IsVisible && !manager.Topmost,"Activating a fully transparent launcher opens settings for recovery");manager.Close();}),DispatcherPriority.ApplicationIdle);recoveryWindow.Reveal();recoveryWindow.Hide();
             var uiColorLibrary=new Library {Theme=ThemeSettings.DesignPresets[1].Copy()};Check(uiColorLibrary.InterfaceTheme.Background==uiColorLibrary.Theme.Background,"Settings palette follows launcher colors by default");uiColorLibrary.SettingsColors.Take(ThemeSettings.Presets[0]);uiColorLibrary.SettingsColors.Separate=true;uiColorLibrary.SettingsColors.Initialized=true;Check(uiColorLibrary.InterfaceTheme.Background=="#111C2B" && uiColorLibrary.Theme.Design=="cat" && uiColorLibrary.Theme.Background=="#FFF5EC","Separate settings palette does not alter launcher design or colors");

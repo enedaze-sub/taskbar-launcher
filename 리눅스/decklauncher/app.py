@@ -131,6 +131,9 @@ class Controller(QObject):
     def reveal(self):
         if self.library.data["Appearance"]["Opacity"]==0:
             self.restore_transparency_settings();return
+        if self.modal:
+            self.restore_transparency_settings();return
+        self.canvas.navigate(None)
         self.close_popups();screen=QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen();area=screen.availableGeometry()
         w=min(920,area.width()-16);h=round(w*454/920);h=min(h,area.height()-16);w=round(h*920/454)
         self.window.resize(w,h);place=self.library.data['LinuxPlacement']

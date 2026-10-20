@@ -21,3 +21,5 @@
 - Use at most one brief installation reminder or a README link when needed.
 - Keep necessary download links and checksums compact and secondary to the change summary; prefer a collapsed section for SHA256 values.
 - This preference applies to future releases. Leave the current v8.3 release text unchanged unless the maintainer explicitly requests another edit.
+
+- Release organization runs on publication or manual dispatch only. Editing automation must not rewrite the existing v8.3 release.

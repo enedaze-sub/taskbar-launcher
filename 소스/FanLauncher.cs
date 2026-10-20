@@ -36,6 +36,11 @@ public sealed partial class LauncherWindow : Window
     private Brush AccentTone(double amount) => Theme.Blend(Theme.Surface, Theme.Accent, amount);
     private Brush MutedTone => Theme.Blend(Theme.Text, Theme.Background, .18);
     private bool modal;
+    private Native.DisplayContext openingDisplay;
+    private Rect? openingAnchor;
+    private bool placing;
+    private bool opening;
+    private int revealGeneration;
     private OutsideClickWatcher? clickWatcher;
     private ContextMenu? settingsContext;
     private readonly bool previewMode;
@@ -70,6 +75,7 @@ public sealed partial class LauncherWindow : Window
     public LauncherWindow(Store store, Library library, bool previewMode = false)
     {
         this.store = store; this.library = library; this.previewMode = previewMode;
+        openingDisplay=Native.DisplayAtCursor();
         dialHost.Clip=Sector(216,380,-180,0);dialHost.Children.Add(dial);
         root.Tag="keep-colors"; UI.Theme(this,library.Theme); Title = "작업표시줄 런처";
         Width = 920; Height = 454; WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
@@ -78,11 +84,11 @@ public sealed partial class LauncherWindow : Window
         var view = new Viewbox { Child = fan, Stretch = Stretch.Uniform }; root.Children.Add(view); Content = root;
         fan.RenderTransform = unfolding; fan.RenderTransformOrigin = new Point(.5, 1); fan.ClipToBounds = true; fan.IsHitTestVisible = !previewMode;
         if (previewMode) KeyboardNavigation.SetTabNavigation(fan, KeyboardNavigationMode.None);
-        SourceInitialized += (_, _) => { Native.ConfigureTaskbar(this);if(!previewMode && ShowActivated)clickWatcher=new OutsideClickWatcher(point=>Dispatcher.BeginInvoke(new Action(()=>HandleScreenClick(point)))); };
+        SourceInitialized += (_, _) => { Native.ConfigureTaskbar(this);if(!previewMode && ShowActivated){PositionAtTaskbar(openingDisplay,openingAnchor);clickWatcher=new OutsideClickWatcher(point=>Dispatcher.BeginInvoke(new Action(()=>HandleScreenClick(point))));} };
         Closed+=(_,_)=>clickWatcher?.Dispose();
-        Loaded += async (_, _) => { if (!previewMode && ShowActivated) { if(library.Appearance.Opacity==0) _ = Dispatcher.BeginInvoke(new Action(Manage)); await PositionAtTaskbarAsync(); AnimateOpen(); } };
-        Activated += async (_, _) => { if (!previewMode && ShowActivated && !modal) await PositionAtTaskbarAsync(); };
-        DpiChanged += async (_, _) => { if (!previewMode && ShowActivated && IsVisible && !modal) await PositionAtTaskbarAsync(); };
+        StateChanged+=(_,_)=>{if(!previewMode && !modal && WindowState==WindowState.Minimized){Hide();WindowState=WindowState.Normal;}};
+        Loaded += (_, _) => { if (!previewMode && ShowActivated) { if(library.Appearance.Opacity==0) _ = Dispatcher.BeginInvoke(new Action(Manage)); _=TaskbarAnchor.FindAsync(openingDisplay); AnimateOpen(); } };
+        DpiChanged += (_, _) => { if (!previewMode && ShowActivated && IsVisible && !modal && !placing) PositionAtTaskbar(openingDisplay,openingAnchor); };
         if (!previewMode) Closed += (_, _) => Application.Current.Shutdown();
         PreviewKeyDown += (_, e) =>
         {
@@ -93,9 +99,9 @@ public sealed partial class LauncherWindow : Window
             if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { Manage(); e.Handled = true; }
         };
         MouseWheel += (_, e) => { if(library.WheelDialEnabled) RotateDial(e.Delta < 0 ? 1 : -1); e.Handled = true; };
-        IsVisibleChanged += (_, _) => { if (!IsVisible) { CloseFolderPreview(); if (!previewMode) ScheduleTrim(); } };
+        IsVisibleChanged += (_, _) => { if (!IsVisible) { CloseFolderPreview(); if (!previewMode) ScheduleTrim(); } else trimTimer?.Stop(); };
         Deactivated += (_, _) => Dispatcher.BeginInvoke(new Action(HandleFocusLoss), System.Windows.Threading.DispatcherPriority.Background);
-        Refresh(); if (!previewMode) PositionAtTaskbar(null);
+        Refresh();
     }
     internal void HandleScreenClick(Point screen)
     {
@@ -123,22 +129,33 @@ public sealed partial class LauncherWindow : Window
         if(previewMode || modal || IsActive || OwnedWindows.Cast<Window>().Any(w=>w.IsActive) || slots.Values.Any(b=>b.ContextMenu?.IsOpen==true) || settingsContext?.IsOpen==true)return;
         Hide();CloseFolderPreview();
     }
-    private async System.Threading.Tasks.Task PositionAtTaskbarAsync()
-        => PositionAtTaskbar(await TaskbarAnchor.FindAsync());
-    private void PositionAtTaskbar(Rect? anchor)
+    private void PositionAtTaskbar(Native.DisplayContext display,Rect? anchor)
     {
-        var location = Native.CursorWorkArea(); var dpi = VisualTreeHelper.GetDpi(this);
-        var physicalWork = anchor.HasValue ? Native.WorkAreaAt(new Point(anchor.Value.X + anchor.Value.Width / 2, anchor.Value.Y + anchor.Value.Height / 2)) : location.Work;
-        var work = new Rect(physicalWork.Left / dpi.DpiScaleX, physicalWork.Top / dpi.DpiScaleY, physicalWork.Width / dpi.DpiScaleX, physicalWork.Height / dpi.DpiScaleY);
-        double center = anchor.HasValue ? (anchor.Value.X + anchor.Value.Width / 2) / dpi.DpiScaleX : !physicalWork.Contains(location.Cursor) && location.Cursor.X > physicalWork.Left ? location.Cursor.X / dpi.DpiScaleX : work.Left + work.Width / 2;
-        var position = TaskbarAnchor.Placement(work, center); Width = position.Width; Height = position.Height; Left = position.X; Top = position.Y;
+        if(placing)return;
+        placing=true;try{var p=TaskbarAnchor.PhysicalPlacement(display,anchor);Width=p.Width/display.ScaleX;Height=p.Height/display.ScaleY;Native.PlacePhysical(this,p);}finally{placing=false;}
     }
-    public void Reveal()
+    internal void ResetForReveal()
+    {
+        bool rebuild=current!=null || page!=0 || dialMode || dialStart!=0;
+        current=null;page=0;dialStart=0;dialMode=false;pages.Clear();dials.Clear();
+        if(rebuild)Refresh();else DefaultNote();
+    }
+    public async void Reveal()
     {
         if(!previewMode && library.Appearance.Opacity==0 && !modal){Manage();return;}
         if (modal) { foreach (Window window in OwnedWindows) window.Activate(); return; }
+        if(opening){opening=false;revealGeneration++;return;}
         if (IsVisible && IsActive) { Hide(); return; }
-        Show(); WindowState = WindowState.Normal; Activate(); Focus(); _ = PositionAtTaskbarAsync(); AnimateOpen();
+        var display=Native.DisplayAtCursor();int generation=++revealGeneration;opening=true;trimTimer?.Stop();
+        try
+        {
+            var anchor=await TaskbarAnchor.FindAsync(display);
+            if(generation!=revealGeneration || modal)return;
+            openingDisplay=display;openingAnchor=anchor;ResetForReveal();
+            WindowState=WindowState.Normal;PositionAtTaskbar(display,anchor);
+            Show();Activate();Focus();AnimateOpen();
+        }
+        finally{if(generation==revealGeneration)opening=false;}
     }
     private void AnimateOpen()
     {
@@ -437,10 +454,10 @@ public sealed partial class LauncherWindow : Window
     /// <summary>After the launcher hides or a settings window closes, give unused memory back to Windows.</summary>
     private void ScheduleTrim()
     {
-        trimTimer ??= new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        trimTimer ??= new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         trimTimer.Stop(); trimTimer.Tick -= TrimTick; trimTimer.Tick += TrimTick; trimTimer.Start();
     }
-    private void TrimTick(object? sender, EventArgs e) { trimTimer!.Stop(); if (!modal) Native.TrimMemory(); }
+    private void TrimTick(object? sender, EventArgs e) { trimTimer!.Stop(); if (!modal && !IsVisible && !opening) Native.TrimMemory(); }
     private void Manage()
     {
         CloseFolderPreview(); modal = true;

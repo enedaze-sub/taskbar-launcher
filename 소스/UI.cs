@@ -543,7 +543,7 @@ public sealed class EditorWindow : Window
         var browse = UI.Button("찾아보기…", () => { var d = new OpenFileDialog { Filter = "모든 파일|*.*" }; if (d.ShowDialog(this) == true) { target.Text = d.FileName; UpdatePreview(); } }); browse.Margin = new Thickness(8, 0, 0, 0); Grid.SetColumn(browse, 1); targetRow.Children.Add(browse);
         arguments = Field(panel, "실행 인수 (선택)", original.Arguments, out var argumentsLabel); working = Field(panel, "작업 폴더 (선택)", original.WorkingDirectory, out var workingLabel);
         target.Tag="Target";arguments.Tag="Arguments";
-        var hint = UI.Text("실제 폴더 경로, https:// 주소, steam:// 링크도 등록할 수 있어요. 바로가기 ‘대상’을 통째로 붙여 넣으면 실행 인수가 자동으로 나뉩니다.", 12, UI.Muted); hint.LineHeight = 19; hint.Margin = new Thickness(0, 12, 0, 0); panel.Children.Add(hint);
+        var hint = UI.Text("실제 폴더 경로, https:// 주소, steam:// 링크도 등록할 수 있어요. 바로가기 ‘대상’을 통째로 붙여 넣으면 실행 인수가 자동으로 나뉩니다.\nWindowsApps 앱은 업데이트된 설치 경로를 자동으로 찾아 실행합니다.", 12, UI.Muted); hint.LineHeight = 19; hint.Margin = new Thickness(0, 12, 0, 0); panel.Children.Add(hint);
         if (original.IsFolder) foreach (UIElement element in new UIElement[] { targetLabel, targetRow, argumentsLabel, arguments, workingLabel, working, hint }) element.Visibility = Visibility.Collapsed;
         else
         {

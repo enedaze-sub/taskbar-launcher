@@ -119,20 +119,20 @@ def organize_release():
     def usage(a):
         name = a["name"]
         return "Windows ZIP" if name.startswith("taskbar-") else "Linux installer (preview)" if "-Linux" in name else "macOS app kit (preview)"
-    rows = ["## 다운로드 파일", "", "| 설치 패키지 · 바로 다운로드 | 대상 |", "|---|---|"]
+    rows = [ "| 설치 패키지 · 바로 다운로드 | 대상 |", "|---|---|"]
     for a in sorted(packages, key=lambda a: (not a["name"].startswith("taskbar-"), a["name"])):
         rows.append("| [" + a["name"] + "](" + a["browser_download_url"] + ") | " + usage(a) + " |")
     for title, url in source_links:
         rows.append("| [" + title + "](" + url + ") | 소스 코드 |")
-    rows += ["", "설치 안내와 테마 미리보기는 [README](" + blob + "README.md) · [Linux 안내](" + blob + quote("리눅스/README.md") + ") · [macOS 안내](" + blob + "macOS/README.md)에서 확인하세요."]
     marker, endmarker = "<!-- asset-downloads:start -->", "<!-- asset-downloads:end -->"
-    body = (release.get("body") or "").replace(" **Source code (zip)**은 GitHub가 자동 생성한 소스 압축입니다.", "")
-    block = marker + "\n" + "\n".join(rows) + "\n" + endmarker
-    if marker in body:
-        assert endmarker in body, "Download section is incomplete"
-        body = body[:body.index(marker)] + block + body[body.index(endmarker) + len(endmarker):]
-    else:
-        body = block + "\n\n" + body
+    start, end = "<!-- package-checksums:start -->", "<!-- package-checksums:end -->"
+    body = release.get("body") or ""
+    for first,last in ((marker,endmarker),(start,end)):
+        if first in body:
+            assert last in body, "Incomplete generated section"
+            body = body[:body.index(first)] + body[body.index(last)+len(last):]
+    block = marker + "\n<details>\n<summary>다운로드 · SHA256</summary>\n\n" + "\n".join(rows)
+    block += "\n\n### SHA256\n\n```text\n" + "\n".join(a["digest"].split(":",1)[1]+"  "+a["name"] for a in packages) + "\n```\n\n</details>\n" + endmarker
     # Replace links before removing the corresponding attachments.
     for a in extras:
         name = a["name"]
@@ -143,15 +143,7 @@ def organize_release():
         elif name.startswith("windows-transparency-"): destination = rawbase + quote("미리보기/독립-투명도.png")
         elif name.startswith("SHA256SUMS-"): destination = "#sha256"
         body = body.replace(a["browser_download_url"], destination)
-    body = "\n".join("세 설치 패키지의 SHA256은 아래 본문에 있으며, 설치 안내와 미리보기는 README에서 확인할 수 있습니다." if line.startswith("- ") and "SHA256SUMS-" in line else line for line in body.splitlines())
-    start, end = "<!-- package-checksums:start -->", "<!-- package-checksums:end -->"
-    checksums = start + "\n## SHA256\n\n\x60\x60\x60text\n" + "\n".join(a["digest"].split(":", 1)[1] + "  " + a["name"] for a in packages) + "\n\x60\x60\x60\n" + end
-    if start in body:
-        assert end in body, "Checksum section is incomplete"
-        body = body[:body.index(start)] + checksums + body[body.index(end) + len(end):]
-    else:
-        body = body.rstrip() + "\n\n" + checksums + "\n"
-    body = body.rstrip() + "\n"
+    body = body.strip()+"\n\n"+block+"\n"
     if body != release.get("body"): api("/releases/" + str(release["id"]), {"body": body})
     # Confirm all installer hashes are present before deleting known duplicates.
     confirmed = api("/releases/tags/" + quote(tag, safe=""))

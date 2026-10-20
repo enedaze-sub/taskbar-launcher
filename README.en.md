@@ -30,11 +30,11 @@ The video shows opening the launcher and folders, managing shortcuts, choosing c
 
 ### Option 1 · Download the ZIP
 
-1. Download [`taskbar-launcher-v8.3.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.3/taskbar-launcher-v8.3.zip) from the [latest release](https://github.com/enedaze-sub/taskbar-launcher/releases/latest) and extract it.
+1. Download [`taskbar-launcher-v8.4.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4/taskbar-launcher-v8.4.zip) from the [latest release](https://github.com/enedaze-sub/taskbar-launcher/releases/latest) and extract it.
 2. Run `실행파일\DeckLauncher.exe`.
 3. Right-click the taskbar icon and choose **Pin to taskbar**.
 
-Under **Assets**, choose **`taskbar-launcher-v8.3.zip`**, the Windows distribution ZIP with executables, source, and translated READMEs.
+Under **Assets**, choose **`taskbar-launcher-v8.4.zip`**, the Windows distribution ZIP with executables, source, and translated READMEs.
 
 ### Option 2 · Install with git
 
@@ -58,11 +58,15 @@ To update, exit the launcher and extract the new files over the existing install
 - **Customize → Bulk tile backgrounds (칸 배경 일괄 설정):** Choose all tiles, the current folder, or the current folder and descendants. Apply images/position and transparency independently.
 - Backup names include the date, time, and seconds. If a name already exists, `_2`, `_3`, and so on are added to preserve earlier files.
 
-Automated checks passed: **231 Windows**, **140 Linux**, and **158 macOS**. [v8.3 changes](docs/v8.3.md) · [Background, bulk, and independent transparency guide](docs/v8.2.md) (Korean).
+Automated checks passed: **257 Windows**, **141 Linux**, and **159 macOS**. [v8.3 changes](docs/v8.3.md) · [Background, bulk, and independent transparency guide](docs/v8.2.md) (Korean).
 
 ![Independent transparency settings on Windows](미리보기/독립-투명도.png)
 
 ## Quick usage guide
+
+- **Reopening:** After hiding the launcher or launching an app, reopening starts at the first library page.
+- **Windows multi-monitor behavior:** The display position is determined on the clicked monitor before showing the launcher. Duplicate position searches and memory cleanup while visible have been removed.
+- **WindowsApps apps:** Versioned paths for apps such as Claude and Paint resolve to the current installed package at launch. Existing targets, arguments, and notes are preserved.
 
 - **Register apps:** Drag an executable (.exe) or shortcut into launcher settings. For apps pinned only to the taskbar, use **Direct registration (직접 등록)** and paste the Target from the shortcut’s properties.
 - **Folders:** Group items by purpose and drag them into or out of folders. Hover over a folder to reveal its icons beside it.
@@ -80,10 +84,10 @@ The Qt/Python versions also support folders, drag reordering, notes, six designs
 
 | Platform | Installation package | Guide |
 |---|---|---|
-| Ubuntu desktop PC, x86_64 | [Download Linux](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.3/DeckLauncher-Linux-x86_64-v8.3.tar.gz) | [Linux guide](리눅스/README.md) |
-| macOS 14.4+, Apple Silicon/Intel | [Download macOS](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.3/DeckLauncher-macOS-v8.3.tar.gz) | [Mac guide](macOS/README.md) |
+| Ubuntu desktop PC, x86_64 | [Download Linux](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4/DeckLauncher-Linux-x86_64-v8.4.tar.gz) | [Linux guide](리눅스/README.md) |
+| macOS 14.4+, Apple Silicon/Intel | [Download macOS](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4/DeckLauncher-macOS-v8.4.tar.gz) | [Mac guide](macOS/README.md) |
 
-The [v8.3 release](https://github.com/enedaze-sub/taskbar-launcher/releases/tag/v8.3) contains packages for all three platforms. **Linux and macOS are preview versions.** Automated checks and Qt rendering were verified on Windows. Installation and Dock behavior on actual Ubuntu/Mac machines have not yet been verified.
+The [v8.3 release](https://github.com/enedaze-sub/taskbar-launcher/releases/tag/v8.4) contains packages for all three platforms. **Linux and macOS are preview versions.** Automated checks and Qt rendering were verified on Windows. Installation and Dock behavior on actual Ubuntu/Mac machines have not yet been verified.
 
 For Linux, extract the package and run `bash install.sh --with-system-deps`.
 

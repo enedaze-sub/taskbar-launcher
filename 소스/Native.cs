@@ -15,6 +15,39 @@ internal static class Native
     [DllImport("user32.dll")] private static extern bool GetCursorPos(out NativePoint point);
     [DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(NativePoint point, uint flags);
     [DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
+    [DllImport("user32.dll",SetLastError=true)] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out NativeRect rect);
+    [DllImport("shcore.dll")] private static extern int GetDpiForMonitor(IntPtr monitor, int type, out uint x, out uint y);
+    private delegate bool MonitorCallback(IntPtr monitor,IntPtr hdc,ref NativeRect rect,IntPtr data);
+    [DllImport("user32.dll")] private static extern bool EnumDisplayMonitors(IntPtr hdc,IntPtr clip,MonitorCallback callback,IntPtr data);
+    internal readonly record struct DisplayContext(Point Cursor, Rect Bounds, Rect Work, double ScaleX, double ScaleY);
+    internal static DisplayContext DisplayAtCursor()
+    {
+        GetCursorPos(out var p);return DisplayAt(new Point(p.X,p.Y));
+    }
+    internal static IReadOnlyList<DisplayContext> Displays()
+    {
+        var displays=new List<DisplayContext>();
+        EnumDisplayMonitors(IntPtr.Zero,IntPtr.Zero,(IntPtr monitor,IntPtr hdc,ref NativeRect rect,IntPtr data)=>{displays.Add(DisplayAt(new Point((rect.Left+rect.Right)/2.0,(rect.Top+rect.Bottom)/2.0)));return true;},IntPtr.Zero);
+        return displays;
+    }
+    internal static DisplayContext DisplayAt(Point point)
+    {
+        var monitor=MonitorFromPoint(new NativePoint{X=(int)point.X,Y=(int)point.Y},2);
+        var info=new MonitorInfo{Size=(uint)Marshal.SizeOf<MonitorInfo>()};
+        if(!GetMonitorInfo(monitor,ref info))return new(point,SystemParameters.WorkArea,SystemParameters.WorkArea,1,1);
+        uint x=96,y=96;try{if(GetDpiForMonitor(monitor,0,out x,out y)!=0){x=y=96;}}catch{x=y=96;}
+        Rect Convert(NativeRect r)=>new(r.Left,r.Top,r.Right-r.Left,r.Bottom-r.Top);
+        return new(point,Convert(info.Monitor),Convert(info.Work),x/96.0,y/96.0);
+    }
+    internal static Rect? WindowBounds(IntPtr hwnd)
+        => GetWindowRect(hwnd,out var r)?new Rect(r.Left,r.Top,r.Right-r.Left,r.Bottom-r.Top):null;
+    internal static void PlacePhysical(Window window, Rect rect)
+    {
+        var hwnd=new WindowInteropHelper(window).EnsureHandle();
+        if(!SetWindowPos(hwnd,IntPtr.Zero,(int)Math.Round(rect.X),(int)Math.Round(rect.Y),(int)Math.Round(rect.Width),(int)Math.Round(rect.Height),0x0014))
+            throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+    }
     [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
     private static int ColorRef(string hex) { var c = (Color)ColorConverter.ConvertFromString(hex); return c.R | c.G << 8 | c.B << 16; }
     /// <summary>Windows 11 caption colors; older systems ignore the attributes.</summary>
@@ -123,6 +156,7 @@ internal static class Native
     public static ImageSource? FileIcon(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) return null;
+        path=PackagedApps.Resolve(path);
         uint flags = 0x100; // SHGFI_ICON, large icon; Shell resolves shortcut icons too.
         if (!File.Exists(path) && !Directory.Exists(path)) flags |= 0x10;
         SHGetFileInfo(path, 0x80, out var info, (uint)Marshal.SizeOf<SHFILEINFO>(), flags);

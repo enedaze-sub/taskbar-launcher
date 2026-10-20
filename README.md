@@ -30,11 +30,11 @@
 
 ### 방법 1 · ZIP 내려받기
 
-1. [최신 릴리즈](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)에서 [`taskbar-launcher-v8.3.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.3/taskbar-launcher-v8.3.zip)을 내려받아 압축을 풉니다.
+1. [최신 릴리즈](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)에서 [`taskbar-launcher-v8.4.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4/taskbar-launcher-v8.4.zip)을 내려받아 압축을 풉니다.
 2. `실행파일\DeckLauncher.exe`를 실행합니다.
 3. 작업표시줄 아이콘을 우클릭 → **작업 표시줄에 고정**을 선택합니다.
 
-릴리즈의 **Assets**에서 **`taskbar-launcher-v8.3.zip`**을 선택하세요. 이 파일은 Windows 실행파일·소스·번역 README가 포함된 배포 ZIP입니다.
+릴리즈의 **Assets**에서 **`taskbar-launcher-v8.4.zip`**을 선택하세요. 이 파일은 Windows 실행파일·소스·번역 README가 포함된 배포 ZIP입니다.
 
 ### 방법 2 · git으로 설치
 
@@ -58,11 +58,15 @@ git clone https://github.com/enedaze-sub/taskbar-launcher.git
 - **꾸미기 → 칸 배경 일괄 설정:** 전체 / 현재 폴더 / 하위 폴더 포함 범위를 선택합니다. 이미지·위치와 투명도를 각각 적용할 수 있습니다.
 - 백업 이름에 날짜·시간·초를 포함하며, 같은 이름이 있으면 `_2`, `_3`을 붙여 기존 파일을 보존합니다.
 
-자동 검사 Windows **231개** · Linux **140개** · macOS **158개** 통과. [v8.3 변경 안내](docs/v8.3.md) · [배경·일괄·독립 투명도 사용 안내](docs/v8.2.md).
+자동 검사 Windows **257개** · Linux **141개** · macOS **159개** 통과. [v8.3 변경 안내](docs/v8.3.md) · [배경·일괄·독립 투명도 사용 안내](docs/v8.2.md).
 
 ![Windows 별도 투명도 설정](미리보기/독립-투명도.png)
 
 ## 사용법 요약
+
+- **다시 열기:** 런처를 숨기거나 앱을 실행한 뒤 다시 열면 라이브러리 첫 페이지부터 시작합니다.
+- **Windows 다중 모니터:** 클릭한 모니터에서 표시 위치를 먼저 정하고, 표시 중 중복 위치 검색과 메모리 정리로 인한 지연을 줄였습니다.
+- **WindowsApps 앱:** Claude·그림판 등 버전 번호가 포함된 경로는 실행할 때 현재 설치된 같은 앱의 경로를 찾습니다. 기존 등록·인수·메모는 유지되며 경로를 매번 수정할 필요가 없습니다.
 
 - **등록:** 실행 파일(.exe)이나 바로가기를 런처 설정창에 끌어다 놓습니다. 작업표시줄에만 있는 앱은 **직접 등록**에서 바로가기 속성의 ‘대상’을 붙여 넣으세요.
 - **폴더:** 용도별로 묶고 드래그로 폴더에 넣거나 밖으로 꺼낼 수 있습니다. 폴더에 마우스를 올리면 옆에 내부 아이콘이 펼쳐집니다.
@@ -80,10 +84,10 @@ Qt/Python 버전도 폴더와 드래그 정렬, 메모, 디자인 6종·색상 1
 
 | 대상 | 설치 패키지 | 사용안내 |
 |---|---|---|
-| Ubuntu 일반 PC, x86_64 | [Linux 내려받기](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.3/DeckLauncher-Linux-x86_64-v8.3.tar.gz) | [리눅스 안내](리눅스/README.md) |
-| macOS 14.4+, Apple Silicon/Intel | [macOS 내려받기](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.3/DeckLauncher-macOS-v8.3.tar.gz) | [Mac 안내](macOS/README.md) |
+| Ubuntu 일반 PC, x86_64 | [Linux 내려받기](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4/DeckLauncher-Linux-x86_64-v8.4.tar.gz) | [리눅스 안내](리눅스/README.md) |
+| macOS 14.4+, Apple Silicon/Intel | [macOS 내려받기](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4/DeckLauncher-macOS-v8.4.tar.gz) | [Mac 안내](macOS/README.md) |
 
-[v8.3 릴리즈](https://github.com/enedaze-sub/taskbar-launcher/releases/tag/v8.3)에 세 버전의 설치 파일이 포함됩니다. **Linux/macOS는 미리보기 버전**입니다. 자동 검사와 Qt 렌더링은 Windows에서 확인했으며, 실제 Ubuntu/Mac 설치와 Dock 동작은 실기 검증 전입니다.
+[v8.3 릴리즈](https://github.com/enedaze-sub/taskbar-launcher/releases/tag/v8.4)에 세 버전의 설치 파일이 포함됩니다. **Linux/macOS는 미리보기 버전**입니다. 자동 검사와 Qt 렌더링은 Windows에서 확인했으며, 실제 Ubuntu/Mac 설치와 Dock 동작은 실기 검증 전입니다.
 
 Linux는 패키지를 풀고 `bash install.sh --with-system-deps`를 실행합니다.
 

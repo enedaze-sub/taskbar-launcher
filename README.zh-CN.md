@@ -30,11 +30,11 @@
 
 ### 方式1 · 下载ZIP
 
-1. 从[最新发布](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)下载 [`taskbar-launcher-v8.3.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.3/taskbar-launcher-v8.3.zip) 并解压。
+1. 从[最新发布](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)下载 [`taskbar-launcher-v8.4.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4/taskbar-launcher-v8.4.zip) 并解压。
 2. 运行 `실행파일\DeckLauncher.exe`。
 3. 右键点击任务栏图标，选择**固定到任务栏**。
 
-在发布页面的 **Assets** 中选择 **`taskbar-launcher-v8.3.zip`**。这是包含Windows可执行文件、源码和翻译README的发行ZIP。
+在发布页面的 **Assets** 中选择 **`taskbar-launcher-v8.4.zip`**。这是包含Windows可执行文件、源码和翻译README的发行ZIP。
 
 ### 方式2 · 使用git安装
 
@@ -58,11 +58,15 @@ git clone https://github.com/enedaze-sub/taskbar-launcher.git
 - **个性化 → 批量设置格子背景（칸 배경 일괄 설정）：** 选择全部格子、当前文件夹，或当前文件夹及其子文件夹。图片/位置与透明度可分别应用。
 - 备份文件名包含日期、时间和秒。如果文件名重复，会追加 `_2`、`_3` 等编号，保留之前的文件。
 
-自动检查全部通过：Windows **231项**、Linux **140项**、macOS **158项**。[v8.3更新说明](docs/v8.3.md) · [背景、批量设置与独立透明度指南](docs/v8.2.md)（韩语）。
+自动检查全部通过：Windows **257项**、Linux **141项**、macOS **159项**。[v8.3更新说明](docs/v8.3.md) · [背景、批量设置与独立透明度指南](docs/v8.2.md)（韩语）。
 
 ![Windows独立透明度设置](미리보기/독립-투명도.png)
 
 ## 使用概要
+
+- **重新打开：** 隐藏启动器或启动应用后，再次打开会回到库的第一页。
+- **Windows多显示器：** 先确定点击所在显示器上的位置，再显示启动器，减少重复定位和显示期间内存整理造成的卡顿。
+- **WindowsApps应用：** Claude、画图等带版本号的路径会在启动时解析为当前安装的同一应用，保留已有注册信息、参数和备注，无需每次更新后修改路径。
 
 - **注册应用：** 将可执行文件（.exe）或快捷方式拖入启动器设置。仅固定在任务栏上的应用，可在**直接注册（직접 등록）**中粘贴快捷方式属性里的“目标”内容。
 - **文件夹：** 按用途归类，通过拖拽移入或移出文件夹。鼠标悬停在文件夹上时，其内部图标会在旁边展开。
@@ -80,10 +84,10 @@ Qt/Python版本也支持文件夹、拖拽排序、备注、6种设计、10套�
 
 | 平台 | 安装包 | 指南 |
 |---|---|---|
-| Ubuntu普通桌面PC，x86_64 | [下载Linux版](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.3/DeckLauncher-Linux-x86_64-v8.3.tar.gz) | [Linux指南](리눅스/README.md) |
-| macOS 14.4及以上，Apple Silicon/Intel | [下载macOS版](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.3/DeckLauncher-macOS-v8.3.tar.gz) | [Mac指南](macOS/README.md) |
+| Ubuntu普通桌面PC，x86_64 | [下载Linux版](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4/DeckLauncher-Linux-x86_64-v8.4.tar.gz) | [Linux指南](리눅스/README.md) |
+| macOS 14.4及以上，Apple Silicon/Intel | [下载macOS版](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4/DeckLauncher-macOS-v8.4.tar.gz) | [Mac指南](macOS/README.md) |
 
-[v8.3发布](https://github.com/enedaze-sub/taskbar-launcher/releases/tag/v8.3)包含三种系统的安装包。**Linux/macOS仍为预览版。** 自动检查和Qt渲染已在Windows上验证，尚未在真实Ubuntu/Mac设备上验证安装和Dock行为。
+[v8.3发布](https://github.com/enedaze-sub/taskbar-launcher/releases/tag/v8.4)包含三种系统的安装包。**Linux/macOS仍为预览版。** 自动检查和Qt渲染已在Windows上验证，尚未在真实Ubuntu/Mac设备上验证安装和Dock行为。
 
 Linux：解压安装包并运行 `bash install.sh --with-system-deps`。
 

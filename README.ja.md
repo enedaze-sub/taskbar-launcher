@@ -30,11 +30,11 @@
 
 ### 方法1 · ZIPをダウンロード
 
-1. [最新リリース](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)から [`taskbar-launcher-v8.3.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.3/taskbar-launcher-v8.3.zip) をダウンロードして展開します。
+1. [最新リリース](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)から [`taskbar-launcher-v8.4.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4/taskbar-launcher-v8.4.zip) をダウンロードして展開します。
 2. `실행파일\DeckLauncher.exe` を実行します。
 3. タスクバーのアイコンを右クリックし、**タスクバーにピン留めする**を選択します。
 
-リリースの **Assets** で **`taskbar-launcher-v8.3.zip`** を選んでください。Windows実行ファイル・ソース・翻訳READMEを含む配布ZIPです。
+リリースの **Assets** で **`taskbar-launcher-v8.4.zip`** を選んでください。Windows実行ファイル・ソース・翻訳READMEを含む配布ZIPです。
 
 ### 方法2 · gitでインストール
 
@@ -58,11 +58,15 @@ git clone https://github.com/enedaze-sub/taskbar-launcher.git
 - **カスタマイズ → タイル背景の一括設定（칸 배경 일괄 설정）:** 全タイル／現在のフォルダー／現在のフォルダーとサブフォルダーを選択します。画像・位置と透明度は別々に適用できます。
 - バックアップ名には日付・時刻・秒を含めます。同名のファイルがある場合は `_2`、`_3` などを付け、既存のバックアップを保持します。
 
-自動検証に合格: Windows **231件**・Linux **140件**・macOS **158件**。[v8.3変更案内](docs/v8.3.md)・[背景・一括設定・個別透明度の使い方](docs/v8.2.md)（韓国語）。
+自動検証に合格: Windows **257件**・Linux **141件**・macOS **159件**。[v8.3変更案内](docs/v8.3.md)・[背景・一括設定・個別透明度の使い方](docs/v8.2.md)（韓国語）。
 
 ![Windowsの個別透明度設定](미리보기/독립-투명도.png)
 
 ## 使い方の概要
+
+- **再表示:** ランチャーを隠した後やアプリを起動した後に開き直すと、ライブラリの最初のページから表示します。
+- **Windowsの複数モニター:** クリックしたモニター上の位置を決めてから表示し、表示中の重複した位置検索やメモリ整理による遅延を減らしました。
+- **WindowsAppsのアプリ:** Claudeやペイントなど、バージョン番号を含むパスは起動時に現在のインストール先へ解決します。登録内容・引数・メモは保持されます。
 
 - **アプリ登録:** 実行ファイル（.exe）やショートカットをランチャー設定画面にドラッグします。タスクバーにのみ登録されたアプリは、**直接登録（직접 등록）**でショートカットのプロパティにある「リンク先」を貼り付けてください。
 - **フォルダー:** 用途別にまとめ、ドラッグでフォルダーに入れたり外へ出したりできます。フォルダーにマウスを重ねると、隣に中のアイコンが表示されます。
@@ -80,10 +84,10 @@ Qt/Python版でも、フォルダー、ドラッグ並べ替え、メモ、6種�
 
 | 対象 | インストールパッケージ | 使い方 |
 |---|---|---|
-| UbuntuデスクトップPC、x86_64 | [Linuxをダウンロード](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.3/DeckLauncher-Linux-x86_64-v8.3.tar.gz) | [Linuxガイド](리눅스/README.md) |
-| macOS 14.4以降、Apple Silicon/Intel | [macOSをダウンロード](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.3/DeckLauncher-macOS-v8.3.tar.gz) | [Macガイド](macOS/README.md) |
+| UbuntuデスクトップPC、x86_64 | [Linuxをダウンロード](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4/DeckLauncher-Linux-x86_64-v8.4.tar.gz) | [Linuxガイド](리눅스/README.md) |
+| macOS 14.4以降、Apple Silicon/Intel | [macOSをダウンロード](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4/DeckLauncher-macOS-v8.4.tar.gz) | [Macガイド](macOS/README.md) |
 
-[v8.3リリース](https://github.com/enedaze-sub/taskbar-launcher/releases/tag/v8.3)に3つのOS向けパッケージが含まれます。**Linux・macOS版はプレビュー版です。** 自動検証とQtによる描画はWindows上で確認しました。実際のUbuntu/MacへのインストールとDockの動作は実機未検証です。
+[v8.3リリース](https://github.com/enedaze-sub/taskbar-launcher/releases/tag/v8.4)に3つのOS向けパッケージが含まれます。**Linux・macOS版はプレビュー版です。** 自動検証とQtによる描画はWindows上で確認しました。実際のUbuntu/MacへのインストールとDockの動作は実機未検証です。
 
 Linuxではパッケージを展開し、`bash install.sh --with-system-deps` を実行します。
 
