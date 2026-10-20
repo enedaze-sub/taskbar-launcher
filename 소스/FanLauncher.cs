@@ -80,7 +80,7 @@ public sealed partial class LauncherWindow : Window
         root.Tag="keep-colors"; UI.Theme(this,library.Theme); Title = "작업표시줄 런처";
         Width = 920; Height = 454; WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
         AllowsTransparency = true; Background = Brushes.Transparent; Topmost = false;
-        if (File.Exists(System.IO.Path.Combine(AppContext.BaseDirectory, "launcher.ico"))) Icon = Native.LoadImage(System.IO.Path.Combine(AppContext.BaseDirectory, "launcher.ico"));
+        Icon = Native.LauncherIcon();
         var view = new Viewbox { Child = fan, Stretch = Stretch.Uniform }; root.Children.Add(view); Content = root;
         fan.RenderTransform = unfolding; fan.RenderTransformOrigin = new Point(.5, 1); fan.ClipToBounds = true; fan.IsHitTestVisible = !previewMode;
         if (previewMode) KeyboardNavigation.SetTabNavigation(fan, KeyboardNavigationMode.None);

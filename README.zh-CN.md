@@ -30,11 +30,11 @@
 
 ### 方式1 · 下载ZIP
 
-1. 从[最新发布](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)下载 [`taskbar-launcher-v8.4.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4/taskbar-launcher-v8.4.zip) 并解压。
+1. 从[最新发布](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)下载 [`taskbar-launcher-v8.4.1.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4.1/taskbar-launcher-v8.4.1.zip) 并解压。
 2. 运行 `실행파일\DeckLauncher.exe`。
 3. 右键点击任务栏图标，选择**固定到任务栏**。
 
-在发布页面的 **Assets** 中选择 **`taskbar-launcher-v8.4.zip`**。这是包含Windows可执行文件、源码和翻译README的发行ZIP。
+在发布页面的 **Assets** 中选择 **`taskbar-launcher-v8.4.1.zip`**。这是包含Windows可执行文件、源码和翻译README的发行ZIP。
 
 ### 方式2 · 使用git安装
 
@@ -58,12 +58,13 @@ git clone https://github.com/enedaze-sub/taskbar-launcher.git
 - **个性化 → 批量设置格子背景（칸 배경 일괄 설정）：** 选择全部格子、当前文件夹，或当前文件夹及其子文件夹。图片/位置与透明度可分别应用。
 - 备份文件名包含日期、时间和秒。如果文件名重复，会追加 `_2`、`_3` 等编号，保留之前的文件。
 
-自动检查全部通过：Windows **257项**、Linux **141项**、macOS **159项**。[v8.3更新说明](docs/v8.3.md) · [背景、批量设置与独立透明度指南](docs/v8.2.md)（韩语）。
+自动检查全部通过：Windows **266项**、Linux **141项**、macOS **159项**。[v8.3更新说明](docs/v8.3.md) · [背景、批量设置与独立透明度指南](docs/v8.2.md)（韩语）。
 
 ![Windows独立透明度设置](미리보기/독립-투명도.png)
 
 ## 使用概要
 
+- **Windows任务栏：** 启动器弹窗隐藏后，图标仍会保留。右键可固定，再次点击可打开启动器。
 - **重新打开：** 隐藏启动器或启动应用后，再次打开会回到库的第一页。
 - **Windows多显示器：** 先确定点击所在显示器上的位置，再显示启动器，减少重复定位和显示期间内存整理造成的卡顿。
 - **WindowsApps应用：** Claude、画图等带版本号的路径会在启动时解析为当前安装的同一应用，保留已有注册信息、参数和备注，无需每次更新后修改路径。

@@ -125,7 +125,7 @@ internal static class Native
         {
             string executable = Path.Combine(AppContext.BaseDirectory, "DeckLauncher.exe");
             SetProperty(props, 2, "\"" + executable + "\"");
-            SetProperty(props, 3, Path.Combine(AppContext.BaseDirectory, "launcher.ico") + ",0");
+            SetProperty(props, 3, executable + ",0");
             SetProperty(props, 4, "작업표시줄 런처");
             SetProperty(props, 5, "Enedaze.DeckLauncher");
             Marshal.ThrowExceptionForHR(props.Commit());
@@ -153,6 +153,16 @@ internal static class Native
         finally { Marshal.ReleaseComObject(props); }
     }
 
+    internal static ImageSource? LauncherIcon()
+    {
+        string icon=Path.Combine(AppContext.BaseDirectory,"launcher.ico");
+        if(File.Exists(icon))
+        {
+            var decoder=new IconBitmapDecoder(new Uri(icon),BitmapCreateOptions.PreservePixelFormat,BitmapCacheOption.OnLoad);
+            var frame=decoder.Frames.OrderByDescending(f=>f.PixelWidth).First();frame.Freeze();return frame;
+        }
+        return FileIcon(Path.Combine(AppContext.BaseDirectory,"DeckLauncher.exe"));
+    }
     public static ImageSource? FileIcon(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) return null;
