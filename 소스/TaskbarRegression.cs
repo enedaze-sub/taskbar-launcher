@@ -43,6 +43,13 @@ internal static class TaskbarRegression
         popup.Show();var management=new TaskbarPinWindow(lib.InterfaceTheme){Owner=popup,ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-32000,Top=-32000};management.Show();management.UpdateLayout();
         check(!management.ShowInTaskbar && management.Owner==popup,"Pin management is owned by the launcher and adds no separate taskbar button");
         Preview.Snapshot(management,Path.Combine(output,"pin-management.png"));management.Close();
+        string introductionData=Path.Combine(output,"introduction-test");
+        check(PinIntroduction.ShouldShow(introductionData),"The pin-button guide is offered on the first executable launch");
+        var introductionStore=new Store(introductionData);introductionStore.Save(new Library{Entries=new(){new Entry{Name="보존할 바로가기"}}});var original=File.ReadAllBytes(introductionStore.FilePath);
+        PinIntroduction.MarkSeen(introductionData);check(!PinIntroduction.ShouldShow(introductionData),"Acknowledging the pin guide persists separately so later launches do not repeat it");
+        check(original.SequenceEqual(File.ReadAllBytes(introductionStore.FilePath)),"First-run guide persistence does not rewrite existing shortcut registrations");
+        var introduction=new PinIntroductionWindow(lib.InterfaceTheme){Owner=popup,ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-32000,Top=-32000};introduction.Show();introduction.UpdateLayout();
+        Preview.Snapshot(introduction,Path.Combine(output,"first-run-pin-guide.png"));introduction.Close();
         popup.Close();
     }
     private static IEnumerable<System.Windows.Controls.Button> FindButtons(DependencyObject root)

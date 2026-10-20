@@ -30,11 +30,14 @@
 
 ### 方式1 · 下载ZIP
 
-1. 从[最新发布](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)下载 [`taskbar-launcher-v8.4.3.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4.3/taskbar-launcher-v8.4.3.zip) 并解压。
+1. 从[最新发布](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)下载 [`taskbar-launcher-v8.4.4.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4.4/taskbar-launcher-v8.4.4.zip) 并解压。
 2. 运行 `실행파일\DeckLauncher.exe`。
-3. 右键点击任务栏图标，选择**固定到任务栏**。
+3. 在首次运行的指导中选择**立即固定**，或点击启动器内**设置（⚙）紧邻右侧的小图钉按钮**。
+4. 在Windows确认窗口中允许固定。之后可通过固定的任务栏图标再次打开启动器。
 
-在发布页面的 **Assets** 中选择 **`taskbar-launcher-v8.4.3.zip`**。这是包含Windows可执行文件、源码和翻译README的发行ZIP。
+首次运行时会显示一次固定操作指导。正常状态下点击任务栏可能使启动器自动隐藏，因此请从**启动器内的图钉按钮**开始。取消固定或使用旧版Windows时，保持指导窗口打开，再右键任务栏图标；指导期间不会自动隐藏。
+
+在发布页面的 **Assets** 中选择 **`taskbar-launcher-v8.4.4.zip`**。这是包含Windows可执行文件、源码和翻译README的发行ZIP。
 
 ### 方式2 · 使用git安装
 
@@ -58,7 +61,7 @@ git clone https://github.com/enedaze-sub/taskbar-launcher.git
 - **个性化 → 批量设置格子背景（칸 배경 일괄 설정）：** 选择全部格子、当前文件夹，或当前文件夹及其子文件夹。图片/位置与透明度可分别应用。
 - 备份文件名包含日期、时间和秒。如果文件名重复，会追加 `_2`、`_3` 等编号，保留之前的文件。
 
-自动检查全部通过：Windows **271项**、Linux **141项**、macOS **159项**。[v8.3更新说明](docs/v8.3.md) · [背景、批量设置与独立透明度指南](docs/v8.2.md)（韩语）。
+自动检查全部通过：Windows **274项**、Linux **141项**、macOS **159项**。[v8.3更新说明](docs/v8.3.md) · [背景、批量设置与独立透明度指南](docs/v8.2.md)（韩语）。
 
 ![Windows独立透明度设置](미리보기/독립-투명도.png)
 

@@ -87,7 +87,7 @@ public sealed partial class LauncherWindow : Window
         SourceInitialized += (_, _) => { Native.ConfigureTaskbar(this);if(!previewMode && ShowActivated){PositionAtTaskbar(openingDisplay,openingAnchor);clickWatcher=new OutsideClickWatcher(point=>Dispatcher.BeginInvoke(new Action(()=>HandleScreenClick(point))));} };
         Closed+=(_,_)=>clickWatcher?.Dispose();
         StateChanged+=(_,_)=>{if(!previewMode && !modal && WindowState==WindowState.Minimized){Hide();WindowState=WindowState.Normal;}};
-        Loaded += (_, _) => { if (!previewMode && ShowActivated) { if(library.Appearance.Opacity==0) _ = Dispatcher.BeginInvoke(new Action(Manage)); _=TaskbarAnchor.FindAsync(openingDisplay); AnimateOpen(); } };
+        Loaded += (_, _) => { if (!previewMode && ShowActivated) { QueuePinIntroduction(); _=TaskbarAnchor.FindAsync(openingDisplay); AnimateOpen(); } };
         ContentRendered+=(_,_)=>Dispatcher.BeginInvoke(new Action(()=>{if(IsVisible)Native.InstallWindowIcons(this);}),System.Windows.Threading.DispatcherPriority.ContextIdle);
         DpiChanged += (_, _) => { if (!previewMode && ShowActivated && IsVisible && !modal && !placing) PositionAtTaskbar(openingDisplay,openingAnchor); };
         if (!previewMode) Closed += (_, _) => Application.Current.Shutdown();
@@ -461,6 +461,24 @@ public sealed partial class LauncherWindow : Window
         trimTimer.Stop(); trimTimer.Tick -= TrimTick; trimTimer.Tick += TrimTick; trimTimer.Start();
     }
     private void TrimTick(object? sender, EventArgs e) { trimTimer!.Stop(); if (!modal && !IsVisible && !opening) Native.TrimMemory(); }
+    private void QueuePinIntroduction()
+    {
+        if(!PinIntroduction.ShouldShow(store.DirectoryPath))
+        {
+            if(library.Appearance.Opacity==0)Dispatcher.BeginInvoke(new Action(Manage));
+            return;
+        }
+        // Hold auto-hide until the first-run explanation has been acknowledged.
+        modal=true;
+        Dispatcher.BeginInvoke(new Action(()=>
+        {
+            bool pin=false;
+            try{pin=new PinIntroductionWindow(library.InterfaceTheme){Owner=this}.ShowDialog()==true;PinIntroduction.MarkSeen(store.DirectoryPath);}
+            finally{modal=false;}
+            if(pin)ManageTaskbar();
+            else if(library.Appearance.Opacity==0)Manage();
+        }),System.Windows.Threading.DispatcherPriority.ContextIdle);
+    }
     private async void ManageTaskbar()
     {
         if(previewMode || modal)return;
