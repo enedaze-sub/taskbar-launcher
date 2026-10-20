@@ -25,6 +25,8 @@ internal static class TaskbarRegression
         check(Native.TaskbarProperty(popup,3)==exe+",-32512","Taskbar icon metadata uses the actual negative resource ID");
         check(MintIcon(Native.WindowIcon(popup,true)),"The native small window icon contains the mint launcher artwork, not a generic document");
         check(MintIcon(Native.WindowIcon(popup,false)),"The native large window icon contains the mint launcher artwork");
+        check(MintIcon(Native.ClassIcon(popup,true)),"The native small class icon supplies the launcher artwork to the Windows 11 taskbar");
+        check(MintIcon(Native.ClassIcon(popup,false)),"The native large class icon is set even when WPF registers the class without icons");
         var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(Native.WindowIcon(popup,true)!));using(var file=File.Create(Path.Combine(output,"native-taskbar-icon.png")))encoder.Save(file);
         var pin=FindButtons(popup).FirstOrDefault(b=>System.Windows.Automation.AutomationProperties.GetName(b)=="작업표시줄 고정 / 해제");
         check(pin!=null && pin.Width==24,"A small accessible pin-management button is present in the launcher");

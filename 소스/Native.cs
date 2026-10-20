@@ -166,13 +166,29 @@ internal static class Native
     }
     [DllImport("shell32.dll",CharSet=CharSet.Unicode)] private static extern uint ExtractIconEx(string file,int index,out IntPtr large,out IntPtr small,uint count);
     [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hwnd,uint message,IntPtr wParam,IntPtr lParam);
-    private static void InstallWindowIcons(Window window)
+    [DllImport("user32.dll",EntryPoint="SetClassLongPtrW",SetLastError=true)] private static extern IntPtr SetClassLongPtr(IntPtr hwnd,int index,IntPtr value);
+    [DllImport("user32.dll",EntryPoint="GetClassLongPtrW")] private static extern IntPtr GetClassLongPtr(IntPtr hwnd,int index);
+    // Class icons must outlive every window using the class. Keep one pair for the
+    // process rather than destroying a class's HICON when an individual window closes.
+    private static readonly Lazy<(IntPtr Large,IntPtr Small)> processIcons=new(()=>
     {
         string executable=Path.Combine(AppContext.BaseDirectory,"DeckLauncher.exe");
-        if(ExtractIconEx(executable,-32512,out var large,out var small,1)==0)return;
+        ExtractIconEx(executable,-32512,out var large,out var small,1);return(large,small);
+    });
+    internal static void InstallWindowIcons(Window window)
+    {
+        var (large,small)=processIcons.Value;if(large==IntPtr.Zero || small==IntPtr.Zero)return;
         var hwnd=new WindowInteropHelper(window).Handle;
+        // Windows 11 can cache the empty WPF class icon during a slow startup,
+        // even though WM_GETICON and the taskbar thumbnail report the correct icon.
+        SetClassLongPtr(hwnd,-14,large);SetClassLongPtr(hwnd,-34,small);
         SendMessage(hwnd,0x80,new IntPtr(1),large);SendMessage(hwnd,0x80,IntPtr.Zero,small);
-        window.Closed+=(_,_)=>{if(large!=IntPtr.Zero)DestroyIcon(large);if(small!=IntPtr.Zero && small!=large)DestroyIcon(small);};
+    }
+    internal static BitmapSource? ClassIcon(Window window,bool small)
+    {
+        var icon=GetClassLongPtr(new WindowInteropHelper(window).Handle,small?-34:-14);
+        if(icon==IntPtr.Zero)return null;
+        var bitmap=Imaging.CreateBitmapSourceFromHIcon(icon,Int32Rect.Empty,BitmapSizeOptions.FromEmptyOptions());bitmap.Freeze();return bitmap;
     }
     internal static BitmapSource? WindowIcon(Window window,bool small)
     {

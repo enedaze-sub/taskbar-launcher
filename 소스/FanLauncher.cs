@@ -88,6 +88,7 @@ public sealed partial class LauncherWindow : Window
         Closed+=(_,_)=>clickWatcher?.Dispose();
         StateChanged+=(_,_)=>{if(!previewMode && !modal && WindowState==WindowState.Minimized){Hide();WindowState=WindowState.Normal;}};
         Loaded += (_, _) => { if (!previewMode && ShowActivated) { if(library.Appearance.Opacity==0) _ = Dispatcher.BeginInvoke(new Action(Manage)); _=TaskbarAnchor.FindAsync(openingDisplay); AnimateOpen(); } };
+        ContentRendered+=(_,_)=>Dispatcher.BeginInvoke(new Action(()=>{if(IsVisible)Native.InstallWindowIcons(this);}),System.Windows.Threading.DispatcherPriority.ContextIdle);
         DpiChanged += (_, _) => { if (!previewMode && ShowActivated && IsVisible && !modal && !placing) PositionAtTaskbar(openingDisplay,openingAnchor); };
         if (!previewMode) Closed += (_, _) => Application.Current.Shutdown();
         PreviewKeyDown += (_, e) =>

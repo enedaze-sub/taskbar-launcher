@@ -30,11 +30,11 @@
 
 ### 方法1 · ZIPをダウンロード
 
-1. [最新リリース](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)から [`taskbar-launcher-v8.4.2.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4.2/taskbar-launcher-v8.4.2.zip) をダウンロードして展開します。
+1. [最新リリース](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)から [`taskbar-launcher-v8.4.3.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4.3/taskbar-launcher-v8.4.3.zip) をダウンロードして展開します。
 2. `실행파일\DeckLauncher.exe` を実行します。
 3. タスクバーのアイコンを右クリックし、**タスクバーにピン留めする**を選択します。
 
-リリースの **Assets** で **`taskbar-launcher-v8.4.2.zip`** を選んでください。Windows実行ファイル・ソース・翻訳READMEを含む配布ZIPです。
+リリースの **Assets** で **`taskbar-launcher-v8.4.3.zip`** を選んでください。Windows実行ファイル・ソース・翻訳READMEを含む配布ZIPです。
 
 ### 方法2 · gitでインストール
 
@@ -58,7 +58,7 @@ git clone https://github.com/enedaze-sub/taskbar-launcher.git
 - **カスタマイズ → タイル背景の一括設定（칸 배경 일괄 설정）:** 全タイル／現在のフォルダー／現在のフォルダーとサブフォルダーを選択します。画像・位置と透明度は別々に適用できます。
 - バックアップ名には日付・時刻・秒を含めます。同名のファイルがある場合は `_2`、`_3` などを付け、既存のバックアップを保持します。
 
-自動検証に合格: Windows **269件**・Linux **141件**・macOS **159件**。[v8.3変更案内](docs/v8.3.md)・[背景・一括設定・個別透明度の使い方](docs/v8.2.md)（韓国語）。
+自動検証に合格: Windows **271件**・Linux **141件**・macOS **159件**。[v8.3変更案内](docs/v8.3.md)・[背景・一括設定・個別透明度の使い方](docs/v8.2.md)（韓国語）。
 
 ![Windowsの個別透明度設定](미리보기/독립-투명도.png)
 

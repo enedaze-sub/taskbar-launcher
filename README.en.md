@@ -30,11 +30,11 @@ The video shows opening the launcher and folders, managing shortcuts, choosing c
 
 ### Option 1 · Download the ZIP
 
-1. Download [`taskbar-launcher-v8.4.2.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4.2/taskbar-launcher-v8.4.2.zip) from the [latest release](https://github.com/enedaze-sub/taskbar-launcher/releases/latest) and extract it.
+1. Download [`taskbar-launcher-v8.4.3.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4.3/taskbar-launcher-v8.4.3.zip) from the [latest release](https://github.com/enedaze-sub/taskbar-launcher/releases/latest) and extract it.
 2. Run `실행파일\DeckLauncher.exe`.
 3. Right-click the taskbar icon and choose **Pin to taskbar**.
 
-Under **Assets**, choose **`taskbar-launcher-v8.4.2.zip`**, the Windows distribution ZIP with executables, source, and translated READMEs.
+Under **Assets**, choose **`taskbar-launcher-v8.4.3.zip`**, the Windows distribution ZIP with executables, source, and translated READMEs.
 
 ### Option 2 · Install with git
 
@@ -58,7 +58,7 @@ To update, exit the launcher and extract the new files over the existing install
 - **Customize → Bulk tile backgrounds (칸 배경 일괄 설정):** Choose all tiles, the current folder, or the current folder and descendants. Apply images/position and transparency independently.
 - Backup names include the date, time, and seconds. If a name already exists, `_2`, `_3`, and so on are added to preserve earlier files.
 
-Automated checks passed: **269 Windows**, **141 Linux**, and **159 macOS**. [v8.3 changes](docs/v8.3.md) · [Background, bulk, and independent transparency guide](docs/v8.2.md) (Korean).
+Automated checks passed: **271 Windows**, **141 Linux**, and **159 macOS**. [v8.3 changes](docs/v8.3.md) · [Background, bulk, and independent transparency guide](docs/v8.2.md) (Korean).
 
 ![Independent transparency settings on Windows](미리보기/독립-투명도.png)
 

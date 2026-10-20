@@ -30,11 +30,11 @@
 
 ### 방법 1 · ZIP 내려받기
 
-1. [최신 릴리즈](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)에서 [`taskbar-launcher-v8.4.2.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4.2/taskbar-launcher-v8.4.2.zip)을 내려받아 압축을 풉니다.
+1. [최신 릴리즈](https://github.com/enedaze-sub/taskbar-launcher/releases/latest)에서 [`taskbar-launcher-v8.4.3.zip`](https://github.com/enedaze-sub/taskbar-launcher/releases/download/v8.4.3/taskbar-launcher-v8.4.3.zip)을 내려받아 압축을 풉니다.
 2. `실행파일\DeckLauncher.exe`를 실행합니다.
 3. 작업표시줄 아이콘을 우클릭 → **작업 표시줄에 고정**을 선택합니다.
 
-릴리즈의 **Assets**에서 **`taskbar-launcher-v8.4.2.zip`**을 선택하세요. 이 파일은 Windows 실행파일·소스·번역 README가 포함된 배포 ZIP입니다.
+릴리즈의 **Assets**에서 **`taskbar-launcher-v8.4.3.zip`**을 선택하세요. 이 파일은 Windows 실행파일·소스·번역 README가 포함된 배포 ZIP입니다.
 
 ### 방법 2 · git으로 설치
 
@@ -58,7 +58,7 @@ git clone https://github.com/enedaze-sub/taskbar-launcher.git
 - **꾸미기 → 칸 배경 일괄 설정:** 전체 / 현재 폴더 / 하위 폴더 포함 범위를 선택합니다. 이미지·위치와 투명도를 각각 적용할 수 있습니다.
 - 백업 이름에 날짜·시간·초를 포함하며, 같은 이름이 있으면 `_2`, `_3`을 붙여 기존 파일을 보존합니다.
 
-자동 검사 Windows **269개** · Linux **141개** · macOS **159개** 통과. [v8.3 변경 안내](docs/v8.3.md) · [배경·일괄·독립 투명도 사용 안내](docs/v8.2.md).
+자동 검사 Windows **271개** · Linux **141개** · macOS **159개** 통과. [v8.3 변경 안내](docs/v8.3.md) · [배경·일괄·독립 투명도 사용 안내](docs/v8.2.md).
 
 ![Windows 별도 투명도 설정](미리보기/독립-투명도.png)
 
