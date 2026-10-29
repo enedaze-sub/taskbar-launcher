@@ -10,23 +10,34 @@ public sealed partial class LauncherWindow
 {
     private readonly List<Window> folderPreviews = new();
     private DispatcherTimer? hoverOpen, hoverClose;
+    private Entry? pendingFolder;
+    private FrameworkElement? pendingAnchor;
+    private int pendingDepth;
     internal int PreviewDepth => folderPreviews.Count;
     internal Window? FolderPreview => folderPreviews.LastOrDefault();
     private void ScheduleFolderPreview(Entry folder, FrameworkElement anchor, int depth=0)
     {
-        hoverClose?.Stop(); hoverOpen?.Stop();
-        hoverOpen=new DispatcherTimer { Interval=TimeSpan.FromMilliseconds(180) };
-        hoverOpen.Tick+=(_,_)=>{hoverOpen.Stop(); ShowFolderPreview(folder,anchor,depth);};hoverOpen.Start();
+        hoverClose?.Stop();hoverOpen?.Stop();pendingFolder=folder;pendingAnchor=anchor;pendingDepth=depth;
+        if(hoverOpen==null)
+        {
+            hoverOpen=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(180)};
+            hoverOpen.Tick+=(_,_)=>{hoverOpen.Stop();var next=pendingFolder;var at=pendingAnchor;int level=pendingDepth;pendingFolder=null;pendingAnchor=null;if(next!=null && at!=null && IsVisible)ShowFolderPreview(next,at,level);};
+        }
+        hoverOpen.Start();
     }
     private void SchedulePreviewClose()
     {
-        hoverOpen?.Stop(); hoverClose?.Stop();
-        hoverClose=new DispatcherTimer {Interval=TimeSpan.FromMilliseconds(360)};
-        hoverClose.Tick+=(_,_)=>{hoverClose.Stop();if(!folderPreviews.Any(w=>w.IsMouseOver) && !slots.Any(pair=>pair.Value.IsMouseOver && library.Find(pair.Key)?.IsFolder==true))CloseFolderPreview();};hoverClose.Start();
+        hoverOpen?.Stop();pendingFolder=null;pendingAnchor=null;hoverClose?.Stop();
+        if(hoverClose==null)
+        {
+            hoverClose=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(360)};
+            hoverClose.Tick+=(_,_)=>{hoverClose.Stop();if(!folderPreviews.Any(w=>w.IsMouseOver) && !slots.Any(pair=>pair.Value.IsMouseOver && library.Find(pair.Key)?.IsFolder==true))CloseFolderPreview();};
+        }
+        hoverClose.Start();
     }
     internal void CloseFolderPreview(int depth=0)
     {
-        hoverOpen?.Stop(); hoverClose?.Stop();
+        hoverOpen?.Stop();hoverClose?.Stop();pendingFolder=null;pendingAnchor=null;
         while(folderPreviews.Count>depth){var window=folderPreviews[^1];folderPreviews.RemoveAt(folderPreviews.Count-1);window.Close();}
     }
     internal void ShowFolderPreview(Entry folder, FrameworkElement anchor, int depth=0)
@@ -36,7 +47,10 @@ public sealed partial class LauncherWindow
         CloseFolderPreview(depth);
         var entries=library.Children(folder.Id).ToList();
         var popup=new Window { Title=folder.Name+" · 빠른 펼치기",Tag=folder.Id,Owner=this,ShowInTaskbar=false,ShowActivated=false,Topmost=false,WindowStyle=WindowStyle.None,ResizeMode=ResizeMode.NoResize,AllowsTransparency=true,Background=Brushes.Transparent,Width=284,Height=Math.Min(390,100+Math.Max(1,entries.Count)*59),FontSize=13 };
-        UI.Theme(popup,Theme);popup.Background=Brushes.Transparent;popup.FontFamily=LFont;
+        // The owner already parsed the same themed styles. Sharing them avoids
+        // rebuilding the whole settings stylesheet on every hover popup.
+        popup.Resources.MergedDictionaries.Add(Resources);Skin.Palette(popup,Theme);popup.Foreground=T(Theme.Text);popup.FontFamily=LFont;
+        TextOptions.SetTextFormattingMode(popup,TextFormattingMode.Display);
         var panel=new Grid {Margin=new Thickness(5)};panel.RowDefinitions.Add(new(){Height=GridLength.Auto});panel.RowDefinitions.Add(new());
         popup.Content=new Border {Background=T(Theme.Background),BorderBrush=AccentTone(.6),BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(18),Padding=new Thickness(14),Child=panel};
         var header=new StackPanel {Margin=new Thickness(3,1,3,12)};var name=UI.Text(folder.Name,19,T(Theme.Text));name.FontFamily=LFont;header.Children.Add(name);header.Children.Add(UI.Text(entries.Count+"개 항목 · 바로 선택하세요",11,MutedTone));panel.Children.Add(header);
@@ -46,10 +60,10 @@ public sealed partial class LauncherWindow
         {
             var row=new Button {Padding=new Thickness(8),Margin=new Thickness(0,0,0,5),Background=T(Theme.Surface),Foreground=T(Theme.Text),HorizontalContentAlignment=HorizontalAlignment.Stretch,Height=53,Tag=entry.Id,ToolTip=string.IsNullOrWhiteSpace(entry.Note)?null:entry.Note};
             var layout=new Grid();layout.ColumnDefinitions.Add(new(){Width=new GridLength(38)});layout.ColumnDefinitions.Add(new());layout.ColumnDefinitions.Add(new(){Width=new GridLength(15)});
-            layout.Children.Add(new Image {Source=IconFor(entry),Width=30,Height=30,Stretch=Stretch.Uniform});var caption=new TextBlock {Text=entry.Name,FontFamily=LFont,FontSize=14,VerticalAlignment=VerticalAlignment.Center,TextTrimming=TextTrimming.CharacterEllipsis,Margin=new Thickness(8,0,4,0)};Grid.SetColumn(caption,1);layout.Children.Add(caption);
+            var image=new Image{Width=30,Height=30,Stretch=Stretch.Uniform};layout.Children.Add(image);BindIcon(image,entry);var caption=new TextBlock {Text=entry.Name,FontFamily=LFont,FontSize=14,VerticalAlignment=VerticalAlignment.Center,TextTrimming=TextTrimming.CharacterEllipsis,Margin=new Thickness(8,0,4,0)};Grid.SetColumn(caption,1);layout.Children.Add(caption);
             if(entry.IsFolder){var arrow=UI.Text("›",20,T(Theme.Accent));Grid.SetColumn(arrow,2);layout.Children.Add(arrow);}
             row.Content=layout;row.Click+=(_,_)=>{CloseFolderPreview();Open(entry);};
-            row.MouseEnter+=(_,_)=>{hoverClose?.Stop();ShowNote(entry);if(entry.IsFolder)ScheduleFolderPreview(entry,row,depth+1);else CloseFolderPreview(depth+1);};
+            row.MouseEnter+=(_,_)=>{hoverClose?.Stop();ScheduleNote(entry);if(entry.IsFolder)ScheduleFolderPreview(entry,row,depth+1);else CloseFolderPreview(depth+1);};
             row.MouseLeave+=(_,_)=>SchedulePreviewClose(); rows.Children.Add(row);
         }
         popup.MouseEnter+=(_,_)=>{hoverClose?.Stop();};popup.MouseLeave+=(_,_)=>SchedulePreviewClose();

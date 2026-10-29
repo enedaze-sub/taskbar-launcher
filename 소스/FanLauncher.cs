@@ -85,7 +85,7 @@ public sealed partial class LauncherWindow : Window
         fan.RenderTransform = unfolding; fan.RenderTransformOrigin = new Point(.5, 1); fan.ClipToBounds = true; fan.IsHitTestVisible = !previewMode;
         if (previewMode) KeyboardNavigation.SetTabNavigation(fan, KeyboardNavigationMode.None);
         SourceInitialized += (_, _) => { Native.ConfigureTaskbar(this);if(!previewMode && ShowActivated){PositionAtTaskbar(openingDisplay,openingAnchor);clickWatcher=new OutsideClickWatcher(point=>Dispatcher.BeginInvoke(new Action(()=>HandleScreenClick(point))));} };
-        Closed+=(_,_)=>clickWatcher?.Dispose();
+        Closed+=(_,_)=>{clickWatcher?.Dispose();iconsClosed=true;ClearIcons();CloseFolderPreview();};
         StateChanged+=(_,_)=>{if(!previewMode && !modal && WindowState==WindowState.Minimized){Hide();WindowState=WindowState.Normal;}};
         Loaded += (_, _) => { if (!previewMode && ShowActivated) { QueuePinIntroduction(); _=TaskbarAnchor.FindAsync(openingDisplay); AnimateOpen(); } };
         ContentRendered+=(_,_)=>Dispatcher.BeginInvoke(new Action(()=>{if(IsVisible)Native.InstallWindowIcons(this);}),System.Windows.Threading.DispatcherPriority.ContextIdle);
@@ -100,7 +100,7 @@ public sealed partial class LauncherWindow : Window
             if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { Manage(); e.Handled = true; }
         };
         MouseWheel += (_, e) => { if(library.WheelDialEnabled) RotateDial(e.Delta < 0 ? 1 : -1); e.Handled = true; };
-        IsVisibleChanged += (_, _) => { if (!IsVisible) { CloseFolderPreview(); if (!previewMode) ScheduleTrim(); } else trimTimer?.Stop(); };
+        IsVisibleChanged += (_, _) => { if (!IsVisible) { CancelNoteUpdate();CloseFolderPreview(); if (!previewMode) ScheduleTrim(); } else trimTimer?.Stop(); };
         Deactivated += (_, _) => Dispatcher.BeginInvoke(new Action(HandleFocusLoss), System.Windows.Threading.DispatcherPriority.Background);
         Refresh();
     }
@@ -194,6 +194,7 @@ public sealed partial class LauncherWindow : Window
     }
     private void Refresh()
     {
+        CancelNoteUpdate();
         fan.BeginAnimation(OpacityProperty, null); fan.Opacity = library.Appearance.Opacity;
         if (tag.Parent is Panel oldInfo) oldInfo.Children.Clear();
         CloseFolderPreview(); dial.Children.Clear(); slotShapes.Clear();
@@ -289,10 +290,10 @@ public sealed partial class LauncherWindow : Window
         // Tile layouts size the frame from the slot so the icon always has even padding inside it.
         double frameSize = !tiles ? 60 : Theme.Design=="cat" ? Math.Min(46, bounds.Height-12) : Theme.Design=="paper" && bounds.Height<80 ? 34 : 50;
         var iconFrame = new Border { Width = frameSize, Height = frameSize, CornerRadius = new CornerRadius(Theme.Frame=="circle"?frameSize/2:frameSize*.28), Background = Theme.Frame=="minimal"?Brushes.Transparent:AccentTone(.12), BorderBrush = Theme.Frame=="minimal"?Brushes.Transparent:AccentTone(.3), BorderThickness = new Thickness(.7), Effect = Shadow(12, .28), RenderTransformOrigin = new Point(.5, .5), RenderTransform = new ScaleTransform(1, 1), IsHitTestVisible = false };
-        ImageSource? source = IconFor(entry);
         double iconSize = tiles ? Math.Min(Theme.IconSize, Math.Round(frameSize * (Theme.Design=="cat" ? .7 : .8))) : Theme.IconSize;
-        iconFrame.Child = source != null ? new Image { Source = source, Width = iconSize, Height = iconSize, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } : UI.Icon("\uE8E5", iconSize * .6, null);
-        if (source == null) ((TextBlock)iconFrame.Child).Foreground = T(Theme.Accent);
+        var iconHost=new Grid();var placeholder=UI.Icon("\uE8E5",iconSize*.6,null);placeholder.Foreground=T(Theme.Accent);
+        var image=new Image{Width=iconSize,Height=iconSize,Stretch=Stretch.Uniform,HorizontalAlignment=HorizontalAlignment.Center,VerticalAlignment=VerticalAlignment.Center};
+        iconHost.Children.Add(placeholder);iconHost.Children.Add(image);iconFrame.Child=iconHost;BindIcon(image,entry,placeholder);
         StyleIconFrame(iconFrame);
         double labelHeight = 20, nameLeft, nameTop, nameWidth; var nameAlign = HorizontalAlignment.Center;
         if (Theme.Design=="cat")
@@ -340,12 +341,33 @@ public sealed partial class LauncherWindow : Window
             else Place(icons, badgeBox, point.X + 12, point.Y + (OrbitLayout ? 8 : 3));
         }
         button.Content = contents;
+        // Build the two appearances once, rather than parsing palette colors and
+        // allocating gradients/effects every time the pointer crosses a slot.
+        var idleStyle=(shape.Fill,shape.Stroke,shape.StrokeThickness,shape.Effect);
+        StyleSlot(shape,slotIndex,true);
+        var hoverStyle=(shape.Fill,shape.Stroke,shape.StrokeThickness,shape.Effect);
+        void ApplyStyle(bool active)
+        {
+            var style=active?hoverStyle:idleStyle;shape.Fill=style.Fill;shape.Stroke=style.Stroke;shape.StrokeThickness=style.StrokeThickness;shape.Effect=style.Effect;
+        }
+        ApplyStyle(false);bool highlighted=false;
+        System.Windows.Threading.DispatcherOperation? scaleUpdate=null;
         void Highlight(bool active)
         {
-            StyleSlot(shape, slotIndex, active);
-            var transform = (ScaleTransform)iconFrame.RenderTransform; var animation = new DoubleAnimation(active ? HoverScale : 1, TimeSpan.FromMilliseconds(130)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
-            transform.BeginAnimation(ScaleTransform.ScaleXProperty, animation); transform.BeginAnimation(ScaleTransform.ScaleYProperty, animation);
-            if (active) ShowNote(entry); else DefaultNote();
+            if(active==highlighted)return;highlighted=active;ApplyStyle(active);
+            if(scaleUpdate is not {Status:System.Windows.Threading.DispatcherOperationStatus.Pending})
+                scaleUpdate=Dispatcher.BeginInvoke(new Action(()=>
+                {
+                    scaleUpdate=null;
+                    if(!slots.TryGetValue(entry.Id,out var rendered) || !ReferenceEquals(rendered,button))return;
+                    var transform=(ScaleTransform)iconFrame.RenderTransform;
+                    if(!IsVisible){transform.BeginAnimation(ScaleTransform.ScaleXProperty,null);transform.BeginAnimation(ScaleTransform.ScaleYProperty,null);transform.ScaleX=transform.ScaleY=1;return;}
+                    double target=highlighted?HoverScale:1;
+                    if(!transform.HasAnimatedProperties && Math.Abs(transform.ScaleX-target)<.001)return;
+                    var animation=new DoubleAnimation(target,TimeSpan.FromMilliseconds(130)){EasingFunction=new CubicEase{EasingMode=EasingMode.EaseOut}};
+                    transform.BeginAnimation(ScaleTransform.ScaleXProperty,animation);transform.BeginAnimation(ScaleTransform.ScaleYProperty,animation);
+                }),System.Windows.Threading.DispatcherPriority.Render);
+            ScheduleNote(active?entry:null);
         }
         button.MouseEnter += (_, _) => { Highlight(true); if(entry.IsFolder && !previewMode) ScheduleFolderPreview(entry,button); else SchedulePreviewClose(); };
         button.MouseLeave += (_, _) => { Highlight(button.IsKeyboardFocused); SchedulePreviewClose(); };
@@ -500,7 +522,7 @@ public sealed partial class LauncherWindow : Window
             var manager = new LibraryWindow(store, library) { Owner = this, Topmost = false, WindowStartupLocation = WindowStartupLocation.CenterScreen };
             manager.Navigate(current); manager.ShowDialog(); library = manager.library;
             if (current != null && library.Find(current) == null) current = null;
-            icons.Clear(); Refresh();
+            ClearIcons(); Refresh();
         }
         finally { modal = false; if (IsVisible) Activate(); }
     }
@@ -510,7 +532,7 @@ public sealed partial class LauncherWindow : Window
         try
         {
             var editor = new EditorWindow(store, entry,library.InterfaceTheme) { Owner = this, Topmost = false, WindowStartupLocation = WindowStartupLocation.CenterScreen };
-            if (editor.ShowDialog() == true) { library.Entries[library.Entries.IndexOf(entry)] = editor.Result!; store.Save(library); icons.Clear(); Refresh(); }
+            if (editor.ShowDialog() == true) { library.Entries[library.Entries.IndexOf(entry)] = editor.Result!; store.Save(library); ClearIcons(); Refresh(); }
         }
         finally { modal = false; if (IsVisible) Activate(); }
     }

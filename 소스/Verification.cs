@@ -135,6 +135,7 @@ internal static class SelfTests
             var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
             ReopenRegression.Run(output,Check);
             TaskbarRegression.Run(output,Check);
+            HoverRegression.Run(output,Check);
             fullyTransparentLibrary.Theme.Design="classic";fullStore.Save(fullyTransparentLibrary);var recoveryWindow=new LauncherWindow(fullStore,fullyTransparentLibrary){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=-20000};recoveryWindow.Show();
             app.Dispatcher.BeginInvoke(new Action(()=>{var manager=recoveryWindow.OwnedWindows.OfType<LibraryWindow>().First();Check(manager.IsVisible && !manager.Topmost,"Activating a fully transparent launcher opens settings for recovery");manager.Close();}),DispatcherPriority.ApplicationIdle);recoveryWindow.Reveal();recoveryWindow.Hide();
             var uiColorLibrary=new Library {Theme=ThemeSettings.DesignPresets[1].Copy()};Check(uiColorLibrary.InterfaceTheme.Background==uiColorLibrary.Theme.Background,"Settings palette follows launcher colors by default");uiColorLibrary.SettingsColors.Take(ThemeSettings.Presets[0]);uiColorLibrary.SettingsColors.Separate=true;uiColorLibrary.SettingsColors.Initialized=true;Check(uiColorLibrary.InterfaceTheme.Background=="#111C2B" && uiColorLibrary.Theme.Design=="cat" && uiColorLibrary.Theme.Background=="#FFF5EC","Separate settings palette does not alter launcher design or colors");
@@ -215,8 +216,10 @@ internal static class SelfTests
             Check(radial.Slot(b.Id) != null && radial.RenderedSlots == 1, "Clicking a folder slice opens its contents");
             radial.Navigate(c.Id); Check(radial.RenderedSlots == 1, "Nested folders replace fan contents");
             radial.Slot(item.Id)!.RaiseEvent(new System.Windows.Input.MouseEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0) { RoutedEvent = UIElement.MouseEnterEvent });
+            radial.Dispatcher.Invoke(()=>{},DispatcherPriority.ApplicationIdle);
             Check(radial.DisplayedNote == item.Note, "Real mouse-enter event displays the configured note");
             radial.Slot(item.Id)!.RaiseEvent(new System.Windows.Input.MouseEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0) { RoutedEvent = UIElement.MouseLeaveEvent });
+            radial.Dispatcher.Invoke(()=>{},DispatcherPriority.ApplicationIdle);
             Check(radial.DisplayedNote != item.Note, "Leaving a slot restores folder summary");
             var sector = LauncherWindow.Sector(216, 380, -179, -154);
             Check(!sector.FillContains(new Point(460, 100)) && sector.FillContains(new Point(160, 415)), "Sector hit area excludes transparent parts of the window");
@@ -254,6 +257,7 @@ internal static class SelfTests
             Check(radial.PreviewDepth==0,"Leaving the folder and its panel dismisses it after a transit delay");
             radial.ShowFolderPreview(a,radial.Slot(a.Id)!);var quick=radial.FolderPreview!;quick.UpdateLayout();
             Check(radial.PreviewDepth==1 && !quick.Topmost && quick.Owner==radial && Find<Button>(quick).Any(x=>x.Tag as string==b.Id),"Hover folder panel shows its children beside the fan with normal window stacking");
+            Check(((SolidColorBrush)quick.Resources["SkinAccent"]).Color==(Color)ColorConverter.ConvertFromString(radial.library.Theme.Accent),"Fast folder preview styles use the current launcher palette");
             var nestedQuick=Find<Button>(quick).First(x=>x.Tag as string==b.Id);radial.ShowFolderPreview(b,nestedQuick,1);
             Check(radial.PreviewDepth==2 && Find<Button>(radial.FolderPreview!).Any(x=>x.Tag as string==c.Id),"Nested hover folders open a second adjacent panel");
             var nestedFolder=Find<Button>(radial.FolderPreview!).First(x=>x.Tag as string==c.Id);nestedFolder.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

@@ -10,6 +10,7 @@ public static class Program
     public static int Main(string[] args)
     {
         if (args.Contains("--self-test")) return SelfTests.Run(args.Last());
+        if(args.Length==3 && args[0]=="--perftest")return PerformanceProbe.Run(args[1],args[2]);
         if (args.Contains("--preview"))
         {
             // --preview <out> [--clean-pc] [--windows10]: render as it would look on someone else's PC
